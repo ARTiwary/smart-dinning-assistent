@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MenuItem {
+  id                String      @id @default(uuid())
+  name              String
+  category          String
+  price             Decimal     @db.Decimal(10, 2)
+  description       String?
+  imageUrl          String?
+  tags              String[]
+  allergens         String[]
+  available         Boolean     @default(true)
+  popularScore      Float       @default(0)
+  complementaryIds  String[]
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  createdAt         DateTime    @default(now())
+}
+
+model Session {
+  id                  String     @id @default(uuid())
+  tableId             String
+  status              String     @default("active") // active | ordered | closed
+  preferences         Json       @default("{}")
+  conversationSummary String?
+  cartItems           CartItem[]
+  orders              Order[]
+  createdAt           DateTime   @default(now())
+  expiresAt           DateTime
+}
+
+model CartItem {
+  id                 String    @id @default(uuid())
+  sessionId          String
+  menuItemId         String
+  quantity           Int       @default(1)
+  specialInstructions String?
+  addedBy            String?
+  session            Session   @relation(fields: [sessionId], references: [id])
+  menuItem           MenuItem  @relation(fields: [menuItemId], references: [id])
+  createdAt          DateTime  @default(now())
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  sessionId      String
+  customerName   String
+  customerPhone  String
+  status         String      @default("pending")
+  totalAmount    Decimal     @db.Decimal(10, 2)
+  taxAmount      Decimal     @db.Decimal(10, 2)
+  session        Session     @relation(fields: [sessionId], references: [id])
+  orderItems     OrderItem[]
+  createdAt      DateTime    @default(now())
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  menuItemId  String
+  quantity    Int
+  price       Decimal  @db.Decimal(10, 2)
+  order       Order    @relation(fields: [orderId], references: [id])
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+}

@@ -1,0 +1,28 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@langchain/community": "^0.3.36",
+    "@prisma/client": "^7.8.0",
+    "chromadb": "^3.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "helmet": "^8.2.0",
+    "ioredis": "^5.11.0",
+    "langchain": "^0.3.37",
+    "morgan": "^1.10.1",
+    "prisma": "^7.8.0",
+    "redis": "^5.12.1",
+    "socket.io": "^4.8.3"
+  }
+}
