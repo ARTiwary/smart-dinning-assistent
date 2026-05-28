@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/index.js",
-    "db:migrate": "prisma migrate dev --name init",
-    "db:seed": "node prisma/seed.js",
-    "db:studio": "prisma studio"
-  },
+  "dev": "nodemon src/index.js",
+  "start": "node src/index.js",
+  "db:migrate": "prisma migrate dev --name init",
+  "db:seed": "node prisma/seed.js",
+  "db:studio": "prisma studio"
+},
   "dependencies": {
     "@langchain/community": "^0.3.59",
     "@langchain/core": "^0.3.80",
