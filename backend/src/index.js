@@ -47,3 +47,10 @@ setupSocketHandlers(io);
 
 const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "Smart Dining Backend is running 🚀"
+  });
+});
