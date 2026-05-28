@@ -147,7 +147,7 @@ export default function AdminPanel() {
           </div>
         ) : (
           <>
-            {tab === 'dashboard' && <Dashboard stats={stats} orders={orders} onSelectOrder={setSelectedOrder} />}
+            {tab === 'dashboard' && <Dashboard stats={stats} orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
             {tab === 'orders' && <Orders orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
             {tab === 'tables' && <Tables tables={tables} tableCount={tableCount} setTableCount={setTableCount} qrMap={qrMap} onGenerateQR={generateQR} onCloseTable={closeTable} />}
           </>
@@ -201,7 +201,7 @@ function LoginScreen({ password, setPassword, onLogin }) {
   )
 }
 
-function Dashboard({ stats, orders }) {
+function Dashboard({ stats, orders, onStatusChange, onSelectOrder }) {
   const pending = orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status))
 
   return (

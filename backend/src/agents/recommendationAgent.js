@@ -84,7 +84,8 @@ Respond ONLY with this JSON, no markdown:
   const response = await llm.invoke(prompt);
 
   try {
-    const clean = response.replace(/```json|```/g, '').trim();
+    const raw = typeof response === 'string' ? response : response.content
+const clean = raw.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
     
     // Ensure both item identification keys are universally populated

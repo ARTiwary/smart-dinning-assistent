@@ -26,7 +26,8 @@ Respond ONLY with a JSON object, no explanation, no markdown:
   const response = await fastLlm.invoke(prompt);
 
   try {
-    const clean = response.replace(/```json|```/g, '').trim();
+    const raw = typeof response === 'string' ? response : response.content
+const clean = raw.replace(/```json|```/g, '').trim();
     return JSON.parse(clean);
   } catch {
     return {

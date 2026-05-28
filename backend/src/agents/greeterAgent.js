@@ -10,6 +10,7 @@ Keep it friendly, brief, and energetic. Do not mention you are an AI.
 
 Respond as plain text only.`;
 
-  const response = await llm.invoke(prompt);
-  return response.trim();
+  const response = await llm.invoke(prompt)
+const text = typeof response === 'string' ? response : response.content
+return text.trim()
 }

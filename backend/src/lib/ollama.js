@@ -1,19 +1,19 @@
-import { Ollama } from '@langchain/community/llms/ollama';
-import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama';
+import { ChatGroq } from '@langchain/groq'
+import { OllamaEmbeddings } from '@langchain/ollama'
 
-export const llm = new Ollama({
-  baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-  model: process.env.OLLAMA_MODEL || 'llama3.2',
+export const llm = new ChatGroq({
+  apiKey: process.env.GROQ_API_KEY,
+  model: 'llama-3.1-8b-instant',
   temperature: 0.7,
-});
+})
 
-export const fastLlm = new Ollama({
-  baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-  model: process.env.OLLAMA_MODEL || 'llama3.2',
+export const fastLlm = new ChatGroq({
+  apiKey: process.env.GROQ_API_KEY,
+  model: 'llama-3.1-8b-instant',
   temperature: 0.2,
-});
+})
 
 export const embeddings = new OllamaEmbeddings({
-  baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
   model: process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text',
-});
+  baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+})
