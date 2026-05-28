@@ -311,7 +311,11 @@ export default function AIChat({ sessionId }) {
                               }}>₹{s.price}</p>
                             </div>
                             <button
-                              onClick={() => addToCart(session?.id, s.itemId || s.id, s.name, s.price)}
+                              onClick={() => {
+const sid = session?.id || sessionId
+  if (!sid) return
+  addToCart(sid, s.itemId || s.id, s.name, s.price)
+}}
                               className="btn-press"
                               style={{
                                 background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
@@ -441,6 +445,7 @@ export default function AIChat({ sessionId }) {
           </div>
         </div>
       )}
+      
     </>
   )
 }

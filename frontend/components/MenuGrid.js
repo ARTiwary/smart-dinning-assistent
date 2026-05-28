@@ -63,8 +63,8 @@ export default function MenuGrid() {
   }, [filtered, activeCategory])
 
   function getCartItem(itemId) {
-    return cart.find(c => c.menuItemId === itemId)
-  }
+  return cart.find(c => c.menuItemId === itemId || c.menuItem?.id === itemId)
+}
 
   return (
     <div style={styles.menuContainer}>

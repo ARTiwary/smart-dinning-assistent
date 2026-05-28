@@ -12,6 +12,7 @@ import cartRoutes from './routes/cart.js';
 import orderRoutes from './routes/order.js';
 import otpRoutes from './routes/otp.js';
 import aiRoutes from './routes/ai.js';
+import adminRoutes from './routes/admin.js';
 import { popularItems } from './services/menuService.js';
 
 dotenv.config();
@@ -35,6 +36,7 @@ app.use('/api/session', cartRoutes);
 app.use('/api/session', orderRoutes);
 app.use('/api/otp', otpRoutes);
 app.use('/api/session', aiRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/popular', async (req, res) => {
   const items = await popularItems(req.query.time);

@@ -24,6 +24,7 @@ export default function CartDrawer() {
   const [otpSent, setOtpSent] = useState(false)
   const [orderPlaced, setOrderPlaced] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
 
   useEffect(() => {
     if (session?.id) fetchCart(session.id)
@@ -39,48 +40,35 @@ export default function CartDrawer() {
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0)
 
   async function sendOtp() {
-    if (!phone || !name) return
+  const e = {}
+  if (!name.trim() || name.trim().length < 2) e.name = 'Enter a valid name'
+  if (!/^[6-9]\d{9}$/.test(phone)) e.phone = 'Enter valid 10-digit mobile number'
+  setErrors(e)
+  if (Object.keys(e).length > 0) return
+  setLoading(true)
+  await axios.post(`${API}/api/otp/send`, { phone })
+  setOtpSent(true)
+  setLoading(false)
+}
 
-    setLoading(true)
-
-    await axios.post(`${API}/api/otp/send`, { phone })
-
-    setOtpSent(true)
-    setLoading(false)
+ async function placeOrder() {
+  if (otp.length !== 6) { setErrors({ otp: 'OTP must be 6 digits' }); return }
+  setLoading(true)
+  try {
+    const { data: v } = await axios.post(`${API}/api/otp/verify`, { phone, otp })
+    if (!v.valid) { setErrors({ otp: 'Invalid OTP. Try again.' }); setLoading(false); return }
+    const { data: order } = await axios.post(`${API}/api/session/${session.id}/order`, {
+      customerName: name, customerPhone: phone
+    })
+    setOrderPlaced(order)
+    setCheckoutOpen(false)
+    setCartOpen(false)
+    setName(''); setPhone(''); setOtp(''); setOtpSent(false); setErrors({})
+  } catch (e) {
+    setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
   }
-
-  async function placeOrder() {
-    setLoading(true)
-
-    try {
-      const { data: v } = await axios.post(`${API}/api/otp/verify`, {
-        phone,
-        otp,
-      })
-
-      if (!v.valid) {
-        alert('Invalid OTP')
-        setLoading(false)
-        return
-      }
-
-      const { data: order } = await axios.post(
-        `${API}/api/session/${session.id}/order`,
-        {
-          customerName: name,
-          customerPhone: phone,
-        }
-      )
-
-      setOrderPlaced(order)
-      setCheckoutOpen(false)
-      setCartOpen(false)
-    } catch (e) {
-      alert(e.response?.data?.error || 'Error placing order')
-    }
-
-    setLoading(false)
-  }
+  setLoading(false)
+}
 
   const inputStyle = {
     width: '100%',
@@ -647,6 +635,7 @@ export default function CartDrawer() {
         onChange={(e) => setName(e.target.value)}
         style={inputStyle}
       />
+      {errors.name && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.name}</p>}
 
       <input
         type="tel"
@@ -655,6 +644,7 @@ export default function CartDrawer() {
         onChange={(e) => setPhone(e.target.value)}
         style={inputStyle}
       />
+      {errors.phone && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.phone}</p>}
 
       {otpSent && (
         <input
@@ -668,6 +658,7 @@ export default function CartDrawer() {
           }}
         />
       )}
+      {errors.otp && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.otp}</p>}
 
       <button
         onClick={otpSent ? placeOrder : sendOtp}
@@ -728,6 +719,50 @@ export default function CartDrawer() {
       >
         Cancel
       </button>
+    </div>
+  </div>
+)}
+
+
+{orderPlaced && (
+  <div style={{
+    position: 'fixed', inset: 0, zIndex: 99999,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: '24px', background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(16px)',
+  }}>
+    <div style={{
+      background: 'linear-gradient(145deg, #1a1220, #201628)',
+      border: '1px solid rgba(74,222,128,0.2)',
+      borderRadius: '28px', padding: '36px 28px',
+      width: '100%', maxWidth: '360px', textAlign: 'center',
+    }}>
+      <div style={{ fontSize: '64px', marginBottom: '12px' }}>🎉</div>
+      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 700, color: '#fff5f0', marginBottom: '6px' }}>Order Placed!</h3>
+      <p style={{ color: '#7a5f58', fontSize: '12px', marginBottom: '6px' }}>#{orderPlaced.id?.slice(0, 8).toUpperCase()}</p>
+      <p style={{ background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '30px', fontWeight: 800, marginBottom: '16px' }}>
+        ₹{Number(orderPlaced.totalAmount).toFixed(0)}
+      </p>
+      <p style={{ color: '#7a5f58', fontSize: '13px', marginBottom: '14px' }}>
+        ⏱️ Estimated wait: <span style={{ color: '#ffd166', fontWeight: 600 }}>15–20 mins</span>
+      </p>
+      <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.1), rgba(255,107,157,0.08))', border: '1px solid rgba(255,107,157,0.2)', borderRadius: '14px', padding: '14px', marginBottom: '20px' }}>
+        <p style={{ color: '#ffb3c6', fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>
+          🙏 Thank you, {orderPlaced.customerName?.split(' ')[0]}!
+        </p>
+        <p style={{ color: '#7a5f58', fontSize: '12px', lineHeight: 1.6 }}>
+          Your food is being prepared with love. Want to explore more while you wait?
+        </p>
+      </div>
+      <button onClick={() => setOrderPlaced(null)} style={{
+        width: '100%', marginBottom: '10px',
+        background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+        border: 'none', color: '#fff', padding: '15px', borderRadius: '14px',
+        fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+      }}>🍽️ Explore More Menu</button>
+      <button onClick={() => setOrderPlaced(null)} style={{
+        width: '100%', background: 'transparent', border: 'none',
+        color: '#7a5f58', padding: '8px', cursor: 'pointer', fontSize: '13px',
+      }}>Close</button>
     </div>
   </div>
 )}

@@ -17,14 +17,19 @@ export const useStore = create((set, get) => ({
   addUser: (user) => set(s => ({ users: [...s.users.filter(u => u !== user), user] })),
 
   addToCart: async (sessionId, menuItemId, name, price, addedBy = 'You') => {
-    if (!sessionId) return
-    try {
-      await axios.post(`${API}/api/session/${sessionId}/cart`, {
-        menuItemId, qty: 1, addedBy
-      })
-      await get().fetchCart(sessionId)
-    } catch (e) { console.error(e) }
-  },
+  if (!sessionId) {
+    console.error('No sessionId')
+    return
+  }
+  try {
+    await axios.post(`${API}/api/session/${sessionId}/cart`, {
+      menuItemId, qty: 1, addedBy
+    })
+    await get().fetchCart(sessionId)
+  } catch (e) {
+    console.error('addToCart error:', e.response?.data || e.message)
+  }
+},
 
   removeFromCart: async (sessionId, cartItemId) => {
     try {
@@ -42,9 +47,12 @@ export const useStore = create((set, get) => ({
   },
 
   fetchCart: async (sessionId) => {
-    try {
-      const { data } = await axios.get(`${API}/api/session/${sessionId}/cart`)
-      set({ cart: data })
-    } catch (e) { console.error(e) }
-  },
+  if (!sessionId) return
+  try {
+    const { data } = await axios.get(`${API}/api/session/${sessionId}/cart`)
+    set({ cart: data })
+  } catch (e) {
+    console.error('fetchCart error:', e)
+  }
+},
 }))
