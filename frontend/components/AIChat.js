@@ -7,24 +7,29 @@ import { useStore } from '@/lib/store'
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 const QUICK_BUTTONS = [
-  { label: '🌶 Spicy', message: 'show me spicy options' },
+  { label: '🌶️ Spicy', message: 'show me spicy options' },
   { label: '🥗 Light', message: 'something light to eat' },
-  { label: '🍽 Filling', message: 'I want something filling' },
-  { label: '🍰 Dessert', message: 'what desserts do you have' },
+  { label: '🍽️ Filling', message: 'I want something really filling' },
+  { label: '🍰 Desserts', message: 'what desserts do you have' },
   { label: '🍹 Drinks', message: 'recommend some drinks' },
   { label: '⭐ Best Sellers', message: 'what are your best sellers' },
+  { label: '👥 For Groups', message: 'we are a group, suggest shareable dishes' },
+  { label: '👨‍🍳 Chef Special', message: 'what is the chef special today' },
 ]
 
 export default function AIChat({ sessionId }) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([
-    { role: 'assistant', text: "Hi! I'm Zara 👋 What are you in the mood for today?" }
+    { role: 'assistant', text: "Hi! I'm Zara 👋 Your AI dining companion. What are you in the mood for today?" }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [unread, setUnread] = useState(false)
   const bottomRef = useRef(null)
+  const messagesRef = useRef(messages)
   const { addToCart, session } = useStore()
+
+  useEffect(() => { messagesRef.current = messages }, [messages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -32,7 +37,15 @@ export default function AIChat({ sessionId }) {
 
   async function sendMessage(text) {
     const msg = text || input.trim()
-    if (!msg || !sessionId) return
+    if (!msg) return
+
+    if (!sessionId) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        text: "Reconnecting... please try again in a moment! 🔄"
+      }])
+      return
+    }
 
     setMessages(prev => [...prev, { role: 'user', text: msg }])
     setInput('')
@@ -47,121 +60,383 @@ export default function AIChat({ sessionId }) {
         role: 'assistant',
         text: data.message,
         suggestions: data.suggestions || [],
-        upsell: data.upsell
       }
       setMessages(prev => [...prev, aiMsg])
       if (!open) setUnread(true)
 
-      // Upsell message
       if (data.upsell) {
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          text: data.upsell.message,
-          suggestions: data.upsell.suggestion ? [data.upsell.suggestion] : []
-        }])
+        setTimeout(() => {
+          const upsellSuggestion = data.upsell.suggestion;
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            text: data.upsell.message,
+            suggestions: upsellSuggestion ? [{
+              ...upsellSuggestion,
+              itemId: upsellSuggestion.itemId || upsellSuggestion.id
+            }] : []
+          }])
+        }, 800)
       }
     } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', text: "Sorry, I had a hiccup! Try again?" }])
+      console.error('AI Error:', e)
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        text: "I'm back! Sorry about that. What can I get you? 🍽️"
+      }])
     }
     setLoading(false)
   }
 
   return (
     <>
-      {/* Floating button */}
-      <button
-        onClick={() => { setOpen(true); setUnread(false) }}
-        className="fixed bottom-6 right-6 z-40 bg-orange-500 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl"
-      >
-        💬
-        {unread && <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" />}
-      </button>
+      {/* Floating Zara button */}
+      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 40 }}>
+        {/* Ripple rings */}
+        {!open && (
+          <>
+            <div style={{
+              position: 'absolute', inset: '-8px',
+              borderRadius: '50%',
+              border: '2px solid rgba(255,107,157,0.4)',
+              animation: 'pulse-ring 2s ease-out infinite',
+              pointerEvents: 'none'
+            }} />
+            <div style={{
+              position: 'absolute', inset: '-16px',
+              borderRadius: '50%',
+              border: '2px solid rgba(255,107,157,0.2)',
+              animation: 'pulse-ring 2s ease-out 0.4s infinite',
+              pointerEvents: 'none'
+            }} />
+          </>
+        )}
 
-      {/* Chat drawer */}
+        {/* Tooltip */}
+        {!open && (
+          <div style={{
+            position: 'absolute',
+            bottom: '70px', right: '0',
+            background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+            color: '#fff',
+            fontSize: '12px', fontWeight: 600,
+            padding: '8px 14px',
+            borderRadius: '16px 16px 4px 16px',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 8px 24px rgba(255,107,157,0.4)',
+            animation: 'floatTooltip 3s ease-in-out infinite',
+            fontFamily: 'var(--font-body)',
+            pointerEvents: 'none'
+          }}>
+            ✨ May I suggest something?
+            <div style={{
+              position: 'absolute', bottom: '-6px', right: '14px',
+              width: '10px', height: '10px',
+              background: 'var(--flame)',
+              clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+            }} />
+          </div>
+        )}
+
+        {/* Main button */}
+        <button
+          onClick={() => { setOpen(true); setUnread(false) }}
+          style={{
+            position: 'relative',
+            width: '62px', height: '62px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #ff6b9d 0%, #ff6b35 50%, #ffaa40 100%)',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '26px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 30px rgba(255,107,157,0.5)',
+            animation: open ? 'none' : 'zaraFloat 3s ease-in-out infinite',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.transform = 'scale(1.12)'
+            e.currentTarget.style.boxShadow = '0 12px 40px rgba(255,107,157,0.7)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = 'scale(1)'
+            e.currentTarget.style.boxShadow = '0 8px 30px rgba(255,107,157,0.5)'
+          }}
+        >
+          {open ? '✕' : '🧑‍🍳'}
+          {unread && !open && (
+            <div style={{
+              position: 'absolute', top: '4px', right: '4px',
+              width: '12px', height: '12px',
+              borderRadius: '50%',
+              background: '#fff',
+              border: '2px solid var(--rose)',
+            }} />
+          )}
+        </button>
+      </div>
+
+      {/* Chat fullscreen */}
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-[#0f0f0f]">
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          display: 'flex', flexDirection: 'column',
+          background: 'linear-gradient(180deg, #0d0a0f 0%, #1a1220 100%)',
+          animation: 'slideUp 0.3s both'
+        }}>
           {/* Header */}
-          <div className="p-4 border-b border-[#2a2a2a] flex items-center gap-3">
-            <div className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-lg">🤖</div>
-            <div className="flex-1">
-              <p className="text-white font-bold">Zara</p>
-              <p className="text-green-400 text-xs">● Online</p>
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid rgba(255,107,53,0.12)',
+            display: 'flex', alignItems: 'center', gap: '14px',
+            background: 'linear-gradient(135deg, rgba(255,107,157,0.12), rgba(255,107,53,0.08))'
+          }}>
+            <div style={{
+              width: '46px', height: '46px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ff6b9d 0%, #ff6b35 50%, #ffaa40 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '22px',
+              boxShadow: '0 4px 15px rgba(255,107,157,0.4)',
+              flexShrink: 0
+            }}>🧑‍🍳</div>
+            <div style={{ flex: 1 }}>
+              <p style={{
+                fontFamily: 'var(--font-display)',
+                color: 'var(--text-primary)',
+                fontSize: '18px', fontWeight: 700
+              }}>Zara</p>
+              <p style={{
+                fontSize: '11px', fontWeight: 600,
+                letterSpacing: '0.05em',
+                background: 'linear-gradient(135deg, #ff6b9d, #ffaa40)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}>
+                ● AI DINING ASSISTANT
+              </p>
             </div>
-            <button onClick={() => setOpen(false)} className="text-gray-400 text-xl">✕</button>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                width: '36px', height: '36px',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid var(--border)',
+                borderRadius: '50%',
+                color: 'var(--text-secondary)',
+                fontSize: '16px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}
+            >✕</button>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] ${msg.role === 'user'
-                  ? 'bg-orange-500 text-white rounded-2xl rounded-tr-sm'
-                  : 'bg-[#1a1a1a] text-white rounded-2xl rounded-tl-sm'} px-4 py-3`}>
-                  <p className="text-sm">{msg.text}</p>
-
-                  {/* Suggestion cards */}
-                  {msg.suggestions?.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {msg.suggestions.map((s, j) => (
-                        <div key={j} className="bg-[#2a2a2a] rounded-xl p-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-white text-sm font-medium">{s.name}</p>
-                            {s.reason && <p className="text-gray-400 text-xs">{s.reason}</p>}
-                            <p className="text-orange-400 font-bold text-sm">₹{s.price}</p>
-                          </div>
-                          <button
-                            onClick={() => addToCart(session?.id, s.itemId, s.name, s.price)}
-                            className="bg-orange-500 text-white text-xs px-3 py-1.5 rounded-full ml-2"
-                          >
-                            Add
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }} className="scrollbar-hide">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {messages.map((msg, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  animation: 'slideUp 0.3s both'
+                }}>
+                  {msg.role === 'assistant' && (
+                    <div style={{
+                      width: '30px', height: '30px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '14px',
+                      marginRight: '8px',
+                      flexShrink: 0,
+                      alignSelf: 'flex-end'
+                    }}>🧑‍🍳</div>
                   )}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-[#1a1a1a] rounded-2xl px-4 py-3">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}}/>
-                    <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}}/>
-                    <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}}/>
+
+                  <div style={{ maxWidth: '78%' }}>
+                    <div style={{
+                      padding: '12px 16px',
+                      borderRadius: msg.role === 'user'
+                        ? '20px 20px 4px 20px'
+                        : '20px 20px 20px 4px',
+                      background: msg.role === 'user'
+                        ? 'linear-gradient(135deg, #ff6b9d, #ff6b35)'
+                        : 'var(--bg-card)',
+                      border: msg.role === 'assistant'
+                        ? '1px solid rgba(255,107,157,0.15)'
+                        : 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px', lineHeight: 1.5,
+                    }}>
+                      {msg.text}
+                    </div>
+
+                    {/* Suggestion cards */}
+                    {msg.suggestions?.length > 0 && (
+                      <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {msg.suggestions.map((s, j) => (
+                          <div key={j} style={{
+                            background: 'var(--bg-card2)',
+                            border: '1px solid rgba(255,107,157,0.2)',
+                            borderRadius: '14px',
+                            padding: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            animation: `slideUp 0.4s ${j * 0.1}s both`
+                          }}>
+                            <div style={{
+                              width: '44px', height: '44px',
+                              borderRadius: '10px',
+                              background: 'linear-gradient(135deg, rgba(255,107,157,0.2), rgba(255,107,53,0.15))',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '20px', flexShrink: 0
+                            }}>🍽️</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{
+                                color: 'var(--text-primary)',
+                                fontSize: '13px', fontWeight: 600,
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                              }}>{s.name}</p>
+                              {s.reason && (
+                                <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
+                                  {s.reason}
+                                </p>
+                              )}
+                              <p style={{
+                                background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                                fontWeight: 700, fontSize: '13px', marginTop: '2px'
+                              }}>₹{s.price}</p>
+                            </div>
+                            <button
+                              onClick={() => addToCart(session?.id, s.itemId || s.id, s.name, s.price)}
+                              className="btn-press"
+                              style={{
+                                background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+                                border: 'none', color: '#fff',
+                                fontSize: '12px', fontWeight: 700,
+                                padding: '7px 12px', borderRadius: '20px',
+                                cursor: 'pointer', flexShrink: 0,
+                                fontFamily: 'var(--font-body)',
+                                boxShadow: '0 4px 12px rgba(255,107,157,0.3)'
+                              }}
+                            >+ Add</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
-            <div ref={bottomRef} />
+              ))}
+
+              {/* Loading dots */}
+              {loading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '30px', height: '30px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '14px'
+                  }}>🧑‍🍳</div>
+                  <div style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid rgba(255,107,157,0.15)',
+                    borderRadius: '20px 20px 20px 4px',
+                    padding: '14px 18px',
+                    display: 'flex', gap: '6px', alignItems: 'center'
+                  }}>
+                    {[0, 1, 2].map(i => (
+                      <div key={i} style={{
+                        width: '7px', height: '7px',
+                        borderRadius: '50%',
+                        background: 'var(--rose)',
+                        animation: `bounce-dot 1.4s ease-in-out ${i * 0.16}s infinite`
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
           </div>
 
           {/* Quick buttons */}
-          <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide border-t border-[#2a2a2a]">
+          <div style={{
+            padding: '10px 16px',
+            borderTop: '1px solid rgba(255,107,157,0.08)',
+            display: 'flex', gap: '8px', overflowX: 'auto'
+          }} className="scrollbar-hide">
             {QUICK_BUTTONS.map(btn => (
               <button
                 key={btn.label}
                 onClick={() => sendMessage(btn.message)}
-                className="whitespace-nowrap bg-[#1a1a1a] border border-[#2a2a2a] text-gray-300 text-xs px-3 py-1.5 rounded-full"
-              >
-                {btn.label}
-              </button>
+                className="btn-press"
+                style={{
+                  whiteSpace: 'nowrap',
+                  background: 'var(--bg-card)',
+                  border: '1px solid rgba(255,107,157,0.15)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px', fontWeight: 500,
+                  padding: '8px 12px', borderRadius: '20px',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-body)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,107,157,0.5)'
+                  e.currentTarget.style.color = 'var(--rose)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,107,157,0.15)'
+                  e.currentTarget.style.color = 'var(--text-secondary)'
+                }}
+              >{btn.label}</button>
             ))}
           </div>
 
           {/* Input */}
-          <div className="p-4 border-t border-[#2a2a2a] flex gap-2">
+          <div style={{
+            padding: '12px 16px 20px',
+            display: 'flex', gap: '10px',
+            borderTop: '1px solid rgba(255,107,157,0.1)'
+          }}>
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && sendMessage()}
-              placeholder="Ask Zara anything..."
-              className="flex-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+              onKeyDown={e => e.key === 'Enter' && !loading && sendMessage()}
+              placeholder="Ask Zara anything... (e.g. kuch spicy chahiye)"
+              style={{
+                flex: 1,
+                background: 'var(--bg-card)',
+                border: '1px solid rgba(255,107,157,0.15)',
+                borderRadius: '16px',
+                padding: '14px 16px',
+                color: 'var(--text-primary)',
+                fontSize: '14px',
+                fontFamily: 'var(--font-body)',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }}
+              onFocus={e => e.target.style.borderColor = 'rgba(255,107,157,0.5)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(255,107,157,0.15)'}
             />
             <button
               onClick={() => sendMessage()}
-              disabled={loading}
-              className="bg-orange-500 text-white px-4 rounded-xl disabled:opacity-50"
+              disabled={loading || !input.trim()}
+              className="btn-press"
+              style={{
+                width: '48px', height: '48px',
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+                border: 'none', color: '#fff',
+                fontSize: '18px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: (loading || !input.trim()) ? 0.5 : 1,
+                boxShadow: '0 4px 15px rgba(255,107,157,0.35)',
+                flexShrink: 0
+              }}
             >➤</button>
           </div>
         </div>

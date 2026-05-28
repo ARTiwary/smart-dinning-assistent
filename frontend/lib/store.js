@@ -17,6 +17,7 @@ export const useStore = create((set, get) => ({
   addUser: (user) => set(s => ({ users: [...s.users.filter(u => u !== user), user] })),
 
   addToCart: async (sessionId, menuItemId, name, price, addedBy = 'You') => {
+    if (!sessionId) return
     try {
       await axios.post(`${API}/api/session/${sessionId}/cart`, {
         menuItemId, qty: 1, addedBy

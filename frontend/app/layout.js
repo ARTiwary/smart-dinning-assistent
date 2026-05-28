@@ -8,7 +8,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body style={{ position: 'relative', zIndex: 1 }}>{children}</body>
     </html>
   )
 }

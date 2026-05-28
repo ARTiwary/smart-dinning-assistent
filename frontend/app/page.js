@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-
 export default function Home() {
-  redirect('/table/T1')
-}
+   redirect('/table/T1') 
+  }

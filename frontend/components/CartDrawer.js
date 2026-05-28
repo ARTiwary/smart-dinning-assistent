@@ -7,7 +7,16 @@ import axios from 'axios'
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export default function CartDrawer() {
-  const { cart, cartOpen, setCartOpen, session, fetchCart, updateQty, removeFromCart } = useStore()
+  const {
+    cart,
+    cartOpen,
+    setCartOpen,
+    session,
+    fetchCart,
+    updateQty,
+    removeFromCart,
+  } = useStore()
+
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -20,177 +29,708 @@ export default function CartDrawer() {
     if (session?.id) fetchCart(session.id)
   }, [session])
 
-  const subtotal = cart.reduce((s, i) => s + Number(i.menuItem?.price || 0) * i.quantity, 0)
+  const subtotal = cart.reduce(
+    (s, i) => s + Number(i.menuItem?.price || 0) * i.quantity,
+    0
+  )
+
   const tax = subtotal * 0.05
   const total = subtotal + tax
+  const itemCount = cart.reduce((s, i) => s + i.quantity, 0)
 
   async function sendOtp() {
+    if (!phone || !name) return
+
     setLoading(true)
+
     await axios.post(`${API}/api/otp/send`, { phone })
+
     setOtpSent(true)
     setLoading(false)
   }
 
   async function placeOrder() {
     setLoading(true)
+
     try {
-      const { data: v } = await axios.post(`${API}/api/otp/verify`, { phone, otp })
-      if (!v.valid) return alert('Invalid OTP')
-      const { data: order } = await axios.post(`${API}/api/session/${session.id}/order`, {
-        customerName: name, customerPhone: phone
+      const { data: v } = await axios.post(`${API}/api/otp/verify`, {
+        phone,
+        otp,
       })
+
+      if (!v.valid) {
+        alert('Invalid OTP')
+        setLoading(false)
+        return
+      }
+
+      const { data: order } = await axios.post(
+        `${API}/api/session/${session.id}/order`,
+        {
+          customerName: name,
+          customerPhone: phone,
+        }
+      )
+
       setOrderPlaced(order)
       setCheckoutOpen(false)
       setCartOpen(false)
     } catch (e) {
       alert(e.response?.data?.error || 'Error placing order')
     }
+
     setLoading(false)
+  }
+
+  const inputStyle = {
+    width: '100%',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,107,53,0.2)',
+    borderRadius: '12px',
+    padding: '13px 16px',
+    color: '#fff5f0',
+    fontSize: '14px',
+    fontFamily: 'var(--font-body)',
+    outline: 'none',
+    marginBottom: '12px',
+    boxSizing: 'border-box',
   }
 
   return (
     <>
-      {/* Cart button */}
+      {/* Cart FAB */}
       <button
         onClick={() => setCartOpen(true)}
-        className="relative bg-orange-500 text-white px-4 py-2 rounded-full flex items-center gap-2"
+        style={{
+          background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+          border: 'none',
+          padding: '10px 16px',
+          borderRadius: '30px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          boxShadow:
+            itemCount > 0
+              ? '0 4px 20px rgba(255,107,53,0.4)'
+              : 'none',
+        }}
       >
-        🛒
-        {cart.length > 0 && (
-          <span className="bg-white text-orange-500 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-            {cart.reduce((s, i) => s + i.quantity, 0)}
+        <span style={{ fontSize: '18px' }}>🛒</span>
+
+        {itemCount > 0 && (
+          <span
+            style={{
+              background: '#fff',
+              color: '#ff6b35',
+              fontSize: '12px',
+              fontWeight: 800,
+              borderRadius: '12px',
+              padding: '1px 7px',
+            }}
+          >
+            {itemCount}
+          </span>
+        )}
+
+        {subtotal > 0 && (
+          <span
+            style={{
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: 600,
+            }}
+          >
+            ₹{subtotal.toFixed(0)}
           </span>
         )}
       </button>
 
-      {/* Drawer */}
+      {/* Backdrop */}
       {cartOpen && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/60" onClick={() => setCartOpen(false)} />
-          <div className="w-full max-w-sm bg-[#0f0f0f] border-l border-[#2a2a2a] flex flex-col h-full">
-            <div className="p-4 border-b border-[#2a2a2a] flex items-center justify-between">
-              <h2 className="text-white font-bold text-lg">Your Cart</h2>
-              <button onClick={() => setCartOpen(false)} className="text-gray-400 text-xl">✕</button>
-            </div>
+        <div
+          onClick={() => setCartOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 49,
+            background: 'rgba(0,0,0,0.7)',
+            backdropFilter: 'blur(4px)',
+          }}
+        />
+      )}
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {cart.length === 0 ? (
-                <p className="text-gray-500 text-center mt-8">Your cart is empty</p>
-              ) : cart.map(item => (
-                <div key={item.id} className="bg-[#1a1a1a] rounded-xl p-3 flex items-center gap-3">
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-medium">{item.menuItem?.name}</p>
-                    <p className="text-gray-500 text-xs">Added by {item.addedBy}</p>
-                    <p className="text-orange-400 text-sm font-bold mt-1">
-                      ₹{(Number(item.menuItem?.price) * item.quantity).toFixed(0)}
+      {/* Drawer */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          maxWidth: '380px',
+          height: '100vh',
+          zIndex: 50,
+          background:
+            'linear-gradient(180deg, #0d0a0f 0%, #1a1220 100%)',
+          borderLeft: '1px solid rgba(255,107,53,0.15)',
+          display: 'flex',
+          flexDirection: 'column',
+          transform: cartOpen
+            ? 'translateX(0)'
+            : 'translateX(100%)',
+          transition:
+            'transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+          boxShadow: '-20px 0 60px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '20px',
+            borderBottom: '1px solid rgba(255,107,53,0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background:
+              'linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,107,157,0.05))',
+            flexShrink: 0,
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '22px',
+                fontWeight: 700,
+                color: '#fff5f0',
+              }}
+            >
+              Your Cart 🛒
+            </h2>
+
+            <p
+              style={{
+                color: '#ff8c69',
+                fontSize: '12px',
+                marginTop: '2px',
+              }}
+            >
+              {itemCount} item{itemCount !== 1 ? 's' : ''} selected
+            </p>
+          </div>
+
+          <button
+            onClick={() => setCartOpen(false)}
+            style={{
+              width: '36px',
+              height: '36px',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,107,53,0.15)',
+              borderRadius: '50%',
+              color: '#c8a49a',
+              fontSize: '16px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Items */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '16px',
+          }}
+        >
+          {cart.length === 0 ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '200px',
+                gap: '12px',
+              }}
+            >
+              <span style={{ fontSize: '48px' }}>🍽️</span>
+
+              <p
+                style={{
+                  color: '#7a5f58',
+                  fontSize: '14px',
+                }}
+              >
+                Your cart is empty
+              </p>
+
+              <p
+                style={{
+                  color: '#7a5f58',
+                  fontSize: '12px',
+                }}
+              >
+                Add some delicious items!
+              </p>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              {cart.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    background: '#1a1220',
+                    border:
+                      '1px solid rgba(255,107,53,0.12)',
+                    borderRadius: '16px',
+                    padding: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background:
+                        'linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,107,157,0.1))',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '22px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    🍽️
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        color: '#fff5f0',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {item.menuItem?.name}
+                    </p>
+
+                    <p
+                      style={{
+                        color: '#7a5f58',
+                        fontSize: '11px',
+                        marginTop: '2px',
+                      }}
+                    >
+                      by {item.addedBy}
+                    </p>
+
+                    <p
+                      style={{
+                        background:
+                          'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        marginTop: '4px',
+                      }}
+                    >
+                      ₹
+                      {(
+                        Number(item.menuItem?.price) *
+                        item.quantity
+                      ).toFixed(0)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        background:
+                          'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                        borderRadius: '20px',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <button
+                        onClick={() =>
+                          updateQty(
+                            session?.id,
+                            item.id,
+                            item.quantity - 1
+                          )
+                        }
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#fff',
+                          fontSize: '16px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        −
+                      </button>
+
+                      <span
+                        style={{
+                          color: '#fff',
+                          fontWeight: 800,
+                          fontSize: '13px',
+                          minWidth: '16px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {item.quantity}
+                      </span>
+
+                      <button
+                        onClick={() =>
+                          updateQty(
+                            session?.id,
+                            item.id,
+                            item.quantity + 1
+                          )
+                        }
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#fff',
+                          fontSize: '16px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+
                     <button
-                      onClick={() => updateQty(session?.id, item.id, item.quantity - 1)}
-                      className="w-7 h-7 bg-[#2a2a2a] text-white rounded-full flex items-center justify-center"
-                    >−</button>
-                    <span className="text-white w-4 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQty(session?.id, item.id, item.quantity + 1)}
-                      className="w-7 h-7 bg-orange-500 text-white rounded-full flex items-center justify-center"
-                    >+</button>
+                      onClick={() =>
+                        removeFromCart(session?.id, item.id)
+                      }
+                      style={{
+                        background:
+                          'rgba(255,100,100,0.1)',
+                        border:
+                          '1px solid rgba(255,100,100,0.2)',
+                        borderRadius: '8px',
+                        color: '#ff6b6b',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      🗑 Remove
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
-
-            {cart.length > 0 && (
-              <div className="p-4 border-t border-[#2a2a2a]">
-                <div className="space-y-1 mb-4">
-                  <div className="flex justify-between text-gray-400 text-sm">
-                    <span>Subtotal</span><span>₹{subtotal.toFixed(0)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400 text-sm">
-                    <span>GST (5%)</span><span>₹{tax.toFixed(0)}</span>
-                  </div>
-                  <div className="flex justify-between text-white font-bold">
-                    <span>Total</span><span>₹{total.toFixed(0)}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setCheckoutOpen(true)}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold"
-                >
-                  Place Order
-                </button>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      )}
 
-      {/* Checkout modal */}
-      {checkoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-white font-bold text-lg mb-4">Complete Order</h3>
-            <input
-              placeholder="Your name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:border-orange-500"
-            />
-            <input
-              placeholder="Phone number"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:border-orange-500"
-            />
-            {!otpSent ? (
-              <button
-                onClick={sendOtp}
-                disabled={loading || !phone || !name}
-                className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold disabled:opacity-50"
+        {/* Footer */}
+        {cart.length > 0 && (
+          <div
+            style={{
+              padding: '20px',
+              borderTop:
+                '1px solid rgba(255,107,53,0.12)',
+              background:
+                'linear-gradient(0deg, rgba(255,107,53,0.05), transparent)',
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '6px',
+                color: '#7a5f58',
+                fontSize: '13px',
+              }}
+            >
+              <span>Subtotal</span>
+              <span>₹{subtotal.toFixed(0)}</span>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '6px',
+                color: '#7a5f58',
+                fontSize: '13px',
+              }}
+            >
+              <span>GST (5%)</span>
+              <span>₹{tax.toFixed(0)}</span>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: '8px',
+                paddingTop: '8px',
+                borderTop:
+                  '1px solid rgba(255,107,53,0.12)',
+              }}
+            >
+              <span
+                style={{
+                  color: '#fff5f0',
+                  fontWeight: 700,
+                  fontSize: '16px',
+                }}
               >
-                {loading ? 'Sending...' : 'Send OTP'}
-              </button>
-            ) : (
-              <>
-                <input
-                  placeholder="Enter OTP (123456)"
-                  value={otp}
-                  onChange={e => setOtp(e.target.value)}
-                  className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:border-orange-500"
-                />
-                <button
-                  onClick={placeOrder}
-                  disabled={loading || !otp}
-                  className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold disabled:opacity-50"
-                >
-                  {loading ? 'Placing...' : 'Confirm Order'}
-                </button>
-              </>
-            )}
+                Total
+              </span>
+
+              <span
+                style={{
+                  background:
+                    'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  fontWeight: 800,
+                  fontSize: '18px',
+                }}
+              >
+                ₹{total.toFixed(0)}
+              </span>
+            </div>
+
             <button
-              onClick={() => setCheckoutOpen(false)}
-              className="w-full text-gray-500 py-2 mt-2"
-            >Cancel</button>
+              onClick={() => setCheckoutOpen(true)}
+              style={{
+                width: '100%',
+                marginTop: '16px',
+                background:
+                  'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                border: 'none',
+                color: '#fff',
+                padding: '16px',
+                borderRadius: '16px',
+                fontSize: '16px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow:
+                  '0 6px 25px rgba(255,107,53,0.4)',
+              }}
+            >
+              Place Order 🎉
+            </button>
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* Checkout Modal */}
+{checkoutOpen && (
+  <div
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+
+      zIndex: 99999,
+
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      background: 'rgba(0,0,0,0.75)',
+      backdropFilter: 'blur(8px)',
+
+      padding: '16px',
+
+      overflow: 'hidden',
+    }}
+  >
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '380px',
+
+        background:
+          'linear-gradient(145deg, #1a1220, #201628)',
+
+        border:
+          '1px solid rgba(255,107,53,0.25)',
+
+        borderRadius: '24px',
+
+        padding: '24px',
+
+        boxShadow:
+          '0 20px 80px rgba(0,0,0,0.55)',
+
+        position: 'relative',
+
+        maxHeight: '90vh',
+        overflowY: 'auto',
+
+        animation: 'popupScale 0.25s ease',
+      }}
+    >
+      <h3
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '24px',
+          fontWeight: 700,
+          color: '#fff5f0',
+          marginBottom: '8px',
+          textAlign: 'center',
+        }}
+      >
+        Complete Order 🎉
+      </h3>
+
+      <p
+        style={{
+          color: '#7a5f58',
+          fontSize: '13px',
+          marginBottom: '20px',
+          textAlign: 'center',
+        }}
+      >
+        Total:{' '}
+        <span
+          style={{
+            color: '#ff8c69',
+            fontWeight: 700,
+          }}
+        >
+          ₹{total.toFixed(0)}
+        </span>
+      </p>
+
+      <input
+        type="text"
+        placeholder="Your name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        style={inputStyle}
+      />
+
+      <input
+        type="tel"
+        placeholder="Phone number"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        style={inputStyle}
+      />
+
+      {otpSent && (
+        <input
+          type="text"
+          placeholder="Enter OTP"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value)}
+          style={{
+            ...inputStyle,
+            letterSpacing: '0.2em',
+          }}
+        />
       )}
 
-      {/* Order success */}
-      {orderPlaced && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-[#1a1a1a] border border-green-500/30 rounded-2xl p-6 w-full max-w-sm text-center">
-            <div className="text-5xl mb-4">🎉</div>
-            <h3 className="text-white font-bold text-xl mb-2">Order Placed!</h3>
-            <p className="text-gray-400 text-sm mb-1">Order ID: {orderPlaced.id?.slice(0, 8)}...</p>
-            <p className="text-orange-400 font-bold text-lg mb-4">₹{Number(orderPlaced.totalAmount).toFixed(0)}</p>
-            <p className="text-gray-400 text-sm mb-4">Estimated wait: 15-20 mins</p>
-            <button
-              onClick={() => setOrderPlaced(null)}
-              className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold"
-            >Done</button>
-          </div>
-        </div>
-      )}
+      <button
+        onClick={otpSent ? placeOrder : sendOtp}
+        disabled={
+          loading ||
+          !phone ||
+          !name ||
+          (otpSent && !otp)
+        }
+        style={{
+          width: '100%',
+          background:
+            'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+
+          border: 'none',
+          color: '#fff',
+
+          padding: '15px',
+
+          borderRadius: '14px',
+
+          fontSize: '15px',
+          fontWeight: 700,
+
+          cursor: 'pointer',
+
+          opacity:
+            loading || !phone || !name ? 0.6 : 1,
+
+          boxShadow:
+            '0 6px 20px rgba(255,107,53,0.35)',
+
+          marginBottom: '10px',
+        }}
+      >
+        {loading
+          ? '...'
+          : otpSent
+          ? '✓ Confirm Order'
+          : 'Send OTP →'}
+      </button>
+
+      <button
+        onClick={() => {
+          setCheckoutOpen(false)
+          setOtpSent(false)
+          setOtp('')
+        }}
+        style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          color: '#7a5f58',
+          padding: '10px',
+          cursor: 'pointer',
+          fontSize: '13px',
+        }}
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
     </>
   )
 }
