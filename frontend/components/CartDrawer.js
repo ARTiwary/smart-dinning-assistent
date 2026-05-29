@@ -15,6 +15,7 @@ export default function CartDrawer() {
     fetchCart,
     updateQty,
     removeFromCart,
+    setCart,
   } = useStore()
 
   const [checkoutOpen, setCheckoutOpen] = useState(false)
@@ -64,25 +65,27 @@ export default function CartDrawer() {
     setCheckoutOpen(false)
     setCartOpen(false)
     setName(''); setPhone(''); setOtp(''); setOtpSent(false); setErrors({})
+    // Clear cart from store and backend
+    useStore.getState().setCart([])
   } catch (e) {
     setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
   }
   setLoading(false)
 }
 
-  const inputStyle = {
-    width: '100%',
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,107,53,0.2)',
-    borderRadius: '12px',
-    padding: '13px 16px',
-    color: '#fff5f0',
-    fontSize: '14px',
-    fontFamily: 'var(--font-body)',
-    outline: 'none',
-    marginBottom: '12px',
-    boxSizing: 'border-box',
-  }
+  const inputStyle = (hasError) => ({
+  width: '100%',
+  background: 'rgba(255,255,255,0.04)',
+  border: `1px solid ${hasError ? '#ff6b6b' : 'rgba(255,107,53,0.2)'}`,
+  borderRadius: '12px',
+  padding: '13px 16px',
+  color: '#fff5f0',
+  fontSize: '14px',
+  fontFamily: 'var(--font-body)',
+  outline: 'none',
+  marginBottom: hasError ? '6px' : '12px',
+  boxSizing: 'border-box',
+})
 
   return (
     <>
@@ -627,13 +630,29 @@ export default function CartDrawer() {
           ₹{total.toFixed(0)}
         </span>
       </p>
+      {errors.general && (
+  <div style={{
+    background: 'rgba(255,100,100,0.1)',
+    border: '1px solid rgba(255,100,100,0.3)',
+    borderRadius: '10px',
+    padding: '10px 14px',
+    marginBottom: '12px',
+    color: '#ff6b6b',
+    fontSize: '13px'
+  }}>
+    ⚠ {errors.general}
+  </div>
+)}
 
       <input
         type="text"
         placeholder="Your name"
         value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={inputStyle}
+        onChange={(e) => {
+          setName(e.target.value)
+          setErrors(p => ({ ...p, name: '' }))
+          }}
+        style={inputStyle(!!errors.name)}
       />
       {errors.name && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.name}</p>}
 
@@ -641,8 +660,11 @@ export default function CartDrawer() {
         type="tel"
         placeholder="Phone number"
         value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        style={inputStyle}
+        onChange={(e) => {
+          setPhone(e.target.value)
+          setErrors(p => ({ ...p, phone: '' }))
+          }}
+        style={inputStyle(!!errors.phone)}
       />
       {errors.phone && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.phone}</p>}
 
@@ -651,11 +673,11 @@ export default function CartDrawer() {
           type="text"
           placeholder="Enter OTP"
           value={otp}
-          onChange={(e) => setOtp(e.target.value)}
-          style={{
-            ...inputStyle,
-            letterSpacing: '0.2em',
-          }}
+          onChange={(e) => {
+            setOtp(e.target.value)
+             setErrors(p => ({ ...p, otp: '' }))
+             }}
+          style={{ ...inputStyle(!!errors.otp), letterSpacing: '0.2em' }}
         />
       )}
       {errors.otp && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.otp}</p>}
