@@ -25,7 +25,11 @@ export const io = new Server(httpServer, {
 });
 
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL }));
+app.use(cors({ origin: '*' }))
+
+export const io = new Server(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+})
 app.use(morgan('dev'));
 app.use(express.json());
 

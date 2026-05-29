@@ -49,8 +49,12 @@ const menuItems = [
 ];
 
 async function main() {
-  console.log('🌱 Seeding menu...');
-  await prisma.menuItem.deleteMany();
+  console.log('🌱 Seeding menu...')
+  await prisma.orderItem.deleteMany()
+  await prisma.cartItem.deleteMany()
+  await prisma.order.deleteMany()
+  await prisma.session.deleteMany()
+  await prisma.menuItem.deleteMany()
   for (const item of menuItems) {
     await prisma.menuItem.create({ data: item });
   }

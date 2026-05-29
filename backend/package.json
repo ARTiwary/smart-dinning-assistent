@@ -5,7 +5,8 @@
   "scripts": {
   "dev": "nodemon src/index.js",
   "start": "node src/index.js",
-  "db:migrate": "prisma migrate dev --name init",
+  "build": "prisma generate",
+  "db:migrate": "prisma migrate deploy",
   "db:seed": "node prisma/seed.js",
   "db:studio": "prisma studio"
 },
