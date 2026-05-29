@@ -1,4 +1,4 @@
-import { MemoryVectorStore } from '@langchain/community/vectorstores/memory.js'
+import { MemoryVectorStore } from 'langchain/vectorstores/memory'
 import { embeddings } from './ollama.js'
 import { prisma } from '../db/prisma.js'
 
