@@ -21,15 +21,11 @@ const app = express();
 const httpServer = http.createServer(app);
 
 export const io = new Server(httpServer, {
-  cors: { origin: process.env.FRONTEND_URL, methods: ['GET', 'POST'] }
+  cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
 app.use(helmet());
-app.use(cors({ origin: '*' }))
-
-export const io = new Server(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
-})
+app.use(cors({ origin: '*' }));
 app.use(morgan('dev'));
 app.use(express.json());
 
@@ -47,14 +43,11 @@ app.get('/api/popular', async (req, res) => {
   res.json(items);
 });
 
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'Smart Dining Backend is running 🚀' });
+});
+
 setupSocketHandlers(io);
 
 const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
-app.get("/", (req, res) => {
-  res.json({
-    status: "ok",
-    message: "Smart Dining Backend is running 🚀"
-  });
-});
