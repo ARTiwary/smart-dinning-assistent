@@ -16,6 +16,7 @@ const QUICK_BUTTONS = [
   { label: '👥 For Groups', message: 'we are a group, suggest shareable dishes' },
   { label: '👨‍🍳 Chef Special', message: 'what is the chef special today' },
 ]
+
 function SuggestionImage({ itemId, fallback }) {
   const { menu } = useStore()
   const [error, setError] = useState(false)
@@ -55,7 +56,7 @@ export default function AIChat({ sessionId }) {
   const [unread, setUnread] = useState(false)
   const bottomRef = useRef(null)
   const messagesRef = useRef(messages)
-  const { addToCart, session, setCartOpen, } = useStore()
+  const { addToCart, session, setCartOpen } = useStore()
 
   useEffect(() => { messagesRef.current = messages }, [messages])
 
@@ -117,97 +118,110 @@ export default function AIChat({ sessionId }) {
 
   return (
     <>
-      {/* Floating Zara button */}
-      <div style={{ position: 'fixed', bottom: '20px', right: '16px', zIndex: 9998, display: 'flex', flexDirection: 'column', alignItems: 'flex-end',}}>
-        {/* Ripple rings */}
-        {!open && (
-      <>
+      {/* Floating Zara Button & Tooltip Container */}
+      {!open && (
         <div style={{
-          position: 'absolute', inset: '-8px',
-          borderRadius: '50%',
-          border: '2px solid rgba(255,107,157,0.4)',
-          animation: 'pulse-ring 2s ease-out infinite',
-          pointerEvents: 'none'
-        }} />
-        <div style={{
-          position: 'absolute', inset: '-16px',
-          borderRadius: '50%',
-          border: '2px solid rgba(255,107,157,0.2)',
-          animation: 'pulse-ring 2s ease-out 0.4s infinite',
-          pointerEvents: 'none'
-        }} />
-      </>
-    )}
-{/* Tooltip */}
-{!open && (
-  <div style={{
-    position: 'absolute',
-    bottom: '72px',
-    right: '0',
-    zIndex: 9999,          // ← high z-index
-    background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
-    color: '#fff',
-    fontSize: '12px', fontWeight: 600,
-    padding: '8px 14px',
-    borderRadius: '16px 16px 4px 16px',
-    whiteSpace: 'nowrap',
-    boxShadow: '0 8px 24px rgba(255,107,157,0.4)',
-    animation: 'floatTooltip 3s ease-in-out infinite',
-    fontFamily: 'var(--font-body)',
-    pointerEvents: 'none',
-    minWidth: 'max-content',   // ← never wraps
-  }}>
-    ✨ May I suggest something?
-    <div style={{
-      position: 'absolute',
-      bottom: '-6px', right: '18px',
-      width: '10px', height: '10px',
-      background: '#ff6b35',
-      clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
-    }} />
-  </div>
-)}
-
-        {/* Main button */}
-        <button
-          className="zara-fab"
-          onClick={() => { setOpen(true); setUnread(false) }}
-          style={{
-            position: 'relative',
-            width: '62px', height: '62px',
+          position: 'fixed',
+          bottom: '20px',
+          right: '16px',
+          zIndex: 9998,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+        }}>
+          {/* Ripple rings */}
+          <div style={{
+            position: 'absolute', inset: '-8px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #ff6b9d 0%, #ff6b35 50%, #ffaa40 100%)',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '26px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 30px rgba(255,107,157,0.5)',
-            animation: open ? 'none' : 'zaraFloat 3s ease-in-out infinite',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = 'scale(1.12)'
-            e.currentTarget.style.boxShadow = '0 12px 40px rgba(255,107,157,0.7)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = 'scale(1)'
-            e.currentTarget.style.boxShadow = '0 8px 30px rgba(255,107,157,0.5)'
-          }}
-        >
-          {open ? '✕' : '🧑‍🍳'}
-          {unread && !open && (
-            <div style={{
-              position: 'absolute', top: '4px', right: '4px',
-              width: '12px', height: '12px',
-              borderRadius: '50%',
-              background: '#fff',
-              border: '2px solid var(--rose)',
-            }} />
-          )}
-        </button>
-      </div>
+            border: '2px solid rgba(255,107,157,0.4)',
+            animation: 'pulse-ring 2s ease-out infinite',
+            pointerEvents: 'none'
+          }} />
+          <div style={{
+            position: 'absolute', inset: '-16px',
+            borderRadius: '50%',
+            border: '2px solid rgba(255,107,157,0.2)',
+            animation: 'pulse-ring 2s ease-out 0.4s infinite',
+            pointerEvents: 'none'
+          }} />
 
-      {/* Chat fullscreen */}
+          {/* Tooltip */}
+          <div style={{
+            position: 'absolute',
+            bottom: '72px',
+            right: '0',
+            zIndex: 9999,
+            background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+            color: '#fff',
+            fontSize: '12px', fontWeight: 600,
+            padding: '8px 14px',
+            borderRadius: '16px 16px 4px 16px',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 8px 24px rgba(255,107,157,0.4)',
+            animation: 'floatTooltip 3s ease-in-out infinite',
+            fontFamily: 'var(--font-body)',
+            pointerEvents: 'none',
+            minWidth: 'max-content',
+          }}>
+            ✨ May I suggest something?
+            <div style={{
+              position: 'absolute',
+              bottom: '-6px', right: '18px',
+              width: '10px', height: '10px',
+              background: '#ff6b35',
+              clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+            }} />
+          </div>
+
+          {/* Main FAB button */}
+          <button
+            className="zara-fab"
+            onClick={() => {
+              setOpen(true)
+              setUnread(false)
+            }}
+            style={{
+              position: 'relative',
+              width: '62px', height: '62px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ff6b9d 0%, #ff6b35 50%, #ffaa40 100%)',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '26px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 30px rgba(255,107,157,0.5)',
+              animation: 'zaraFloat 3s ease-in-out infinite',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'scale(1.12)'
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(255,107,157,0.7)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'scale(1)'
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(255,107,157,0.5)'
+            }}
+          >
+            🧑‍🍳
+            {unread && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '4px',
+                  right: '4px',
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#fff',
+                  border: '2px solid var(--rose)',
+                }}
+              />
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Chat Fullscreen View */}
       {open && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 50,
@@ -262,7 +276,7 @@ export default function AIChat({ sessionId }) {
             >✕</button>
           </div>
 
-          {/* Messages */}
+          {/* Messages Container */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }} className="scrollbar-hide">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {messages.map((msg, i) => (
@@ -302,7 +316,7 @@ export default function AIChat({ sessionId }) {
                       {msg.text}
                     </div>
 
-                    {/* Suggestion cards */}
+                    {/* Suggestions Section */}
                     {msg.suggestions?.length > 0 && (
                       <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {msg.suggestions.map((s, j) => (
@@ -317,14 +331,15 @@ export default function AIChat({ sessionId }) {
                             animation: `slideUp 0.4s ${j * 0.1}s both`
                           }}>
                             <div style={{
-                            width: '52px', height: '52px',
-                            borderRadius: '10px',
-                            background: 'linear-gradient(135deg, rgba(255,107,157,0.2), rgba(255,107,53,0.15))',
-                            overflow: 'hidden',
-                            flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              width: '52px', height: '52px',
+                              borderRadius: '10px',
+                              background: 'linear-gradient(135deg, rgba(255,107,157,0.2), rgba(255,107,53,0.15))',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
-                              <SuggestionImage itemId={s.itemId || s.id} fallback="🍽️" /></div>
+                              <SuggestionImage itemId={s.itemId || s.id} fallback="🍽️" />
+                            </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{
                                 color: 'var(--text-primary)',
@@ -346,12 +361,12 @@ export default function AIChat({ sessionId }) {
                             </div>
                             <button
                               onClick={() => {
-  const sid = session?.id || sessionId
-  if (!sid) return
-  addToCart(sid, s.itemId || s.id, s.name, s.price)
-  setCartOpen(true)
-  setTimeout(() => setCartOpen(false), 1200)
-}}
+                                const sid = session?.id || sessionId
+                                if (!sid) return
+                                addToCart(sid, s.itemId || s.id, s.name, s.price)
+                                setCartOpen(true)
+                                setTimeout(() => setCartOpen(false), 1200)
+                              }}
                               className="btn-press"
                               style={{
                                 background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
@@ -371,7 +386,7 @@ export default function AIChat({ sessionId }) {
                 </div>
               ))}
 
-              {/* Loading dots */}
+              {/* Loading Dots */}
               {loading && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{
@@ -402,7 +417,7 @@ export default function AIChat({ sessionId }) {
             </div>
           </div>
 
-          {/* Quick buttons */}
+          {/* Quick Buttons Chips */}
           <div style={{
             padding: '10px 16px',
             borderTop: '1px solid rgba(255,107,157,0.08)',
@@ -436,7 +451,7 @@ export default function AIChat({ sessionId }) {
             ))}
           </div>
 
-          {/* Input */}
+          {/* Input Chat Area */}
           <div style={{
             padding: '12px 16px 20px',
             display: 'flex', gap: '10px',
@@ -481,7 +496,6 @@ export default function AIChat({ sessionId }) {
           </div>
         </div>
       )}
-      
     </>
   )
 }
