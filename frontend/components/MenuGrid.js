@@ -248,7 +248,7 @@ function MenuCard({ item, cartItem, index, onAdd, onIncrease, onDecrease }) {
       <div style={styles.cardFlexContainer}>
         
         {/* Image space block */}
-        <div style={styles.imageBlock}>
+        <div className="image-block-responsive" style={styles.imageBlock}>
           {item.imageUrl && !imgError ? (
             <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
               <Image

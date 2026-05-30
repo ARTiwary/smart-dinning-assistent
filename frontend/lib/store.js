@@ -17,42 +17,73 @@ export const useStore = create((set, get) => ({
   addUser: (user) => set(s => ({ users: [...s.users.filter(u => u !== user), user] })),
 
   addToCart: async (sessionId, menuItemId, name, price, addedBy = 'You') => {
-  if (!sessionId) {
-    console.error('No sessionId')
-    return
-  }
-  try {
-    await axios.post(`${API}/api/session/${sessionId}/cart`, {
-      menuItemId, qty: 1, addedBy
-    })
-    await get().fetchCart(sessionId)
-  } catch (e) {
-    console.error('addToCart error:', e.response?.data || e.message)
-  }
-},
+    if (!sessionId) return
+
+    // Optimistic update
+    const tempItem = {
+      id: `temp-${menuItemId}`,
+      menuItemId,
+      quantity: 1,
+      addedBy,
+      menuItem: { name, price }
+    }
+    const existing = get().cart.find(c => c.menuItemId === menuItemId)
+    if (existing) {
+      set(s => ({
+        cart: s.cart.map(c => c.menuItemId === menuItemId
+          ? { ...c, quantity: c.quantity + 1 }
+          : c
+        )
+      }))
+    } else {
+      set(s => ({ cart: [...s.cart, tempItem] }))
+    }
+
+    try {
+      await axios.post(`${API}/api/session/${sessionId}/cart`, {
+        menuItemId, qty: 1, addedBy
+      })
+      await get().fetchCart(sessionId)
+    } catch (e) {
+      console.error('addToCart error:', e.response?.data || e.message)
+      await get().fetchCart(sessionId)
+    }
+  },
 
   removeFromCart: async (sessionId, cartItemId) => {
+    // Optimistic update
+    set(s => ({ cart: s.cart.filter(c => c.id !== cartItemId) }))
     try {
       await axios.delete(`${API}/api/session/${sessionId}/cart/${cartItemId}`)
+    } catch (e) {
+      console.error(e)
       await get().fetchCart(sessionId)
-    } catch (e) { console.error(e) }
+    }
   },
 
   updateQty: async (sessionId, cartItemId, quantity) => {
     if (quantity < 1) return get().removeFromCart(sessionId, cartItemId)
+
+    // Optimistic update
+    set(s => ({
+      cart: s.cart.map(c => c.id === cartItemId ? { ...c, quantity } : c)
+    }))
+
     try {
       await axios.patch(`${API}/api/session/${sessionId}/cart/${cartItemId}`, { quantity })
+    } catch (e) {
+      console.error(e)
       await get().fetchCart(sessionId)
-    } catch (e) { console.error(e) }
+    }
   },
 
   fetchCart: async (sessionId) => {
-  if (!sessionId) return
-  try {
-    const { data } = await axios.get(`${API}/api/session/${sessionId}/cart`)
-    set({ cart: data })
-  } catch (e) {
-    console.error('fetchCart error:', e)
-  }
-},
+    if (!sessionId) return
+    try {
+      const { data } = await axios.get(`${API}/api/session/${sessionId}/cart`)
+      set({ cart: data })
+    } catch (e) {
+      console.error('fetchCart error:', e)
+    }
+  },
 }))

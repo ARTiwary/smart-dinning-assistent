@@ -73,11 +73,13 @@ export default function TablePage() {
         background: 'rgba(13,10,15,0.92)',
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,107,53,0.12)',
-        padding: '14px 20px',
+        padding: '12px 16px',    // ← smaller padding on mobile
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
+        justifyContent: 'space-between',
+        width: '100%',
+        boxSizing: 'border-box',
+        }}>
         <div>
           <h1 style={{
             fontFamily: 'var(--font-display)',

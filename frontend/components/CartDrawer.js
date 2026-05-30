@@ -153,6 +153,7 @@ export default function CartDrawer() {
 
       {/* Drawer */}
       <div
+      className="cart-drawer"
         style={{
           position: 'fixed',
           top: 0,

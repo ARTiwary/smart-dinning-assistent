@@ -207,7 +207,8 @@ function Dashboard({ stats, orders, onStatusChange, onSelectOrder }) {
   return (
     <div>
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+      <div className="admin-stats-grid"
+       style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         {[
           { label: "Today's Orders", value: stats?.todayOrders || 0, icon: '📦', color: '#ff6b35' },
           { label: 'Active Orders', value: stats?.pendingOrders || 0, icon: '🔥', color: '#ff6b9d' },

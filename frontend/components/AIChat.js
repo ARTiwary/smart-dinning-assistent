@@ -90,7 +90,7 @@ export default function AIChat({ sessionId }) {
   return (
     <>
       {/* Floating Zara button */}
-      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 40 }}>
+      <div style={{ position: 'fixed', bottom: '20px', right: '16px', zIndex: 9999, WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)',}}>
         {/* Ripple rings */}
         {!open && (
           <>
@@ -139,6 +139,7 @@ export default function AIChat({ sessionId }) {
 
         {/* Main button */}
         <button
+          className="zara-fab"
           onClick={() => { setOpen(true); setUnread(false) }}
           style={{
             position: 'relative',

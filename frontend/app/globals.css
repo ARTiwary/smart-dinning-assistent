@@ -152,3 +152,402 @@ body::before {
     transform: scale(1);
   }
 }
+
+/* Mobile fixes */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Fix AI button on mobile */
+@media (max-width: 640px) {
+  .zara-btn {
+    bottom: 16px !important;
+    right: 12px !important;
+  }
+}
+
+/* Mobile menu card */
+@media (max-width: 640px) {
+  .menu-card-pop {
+    border-radius: 16px !important;
+  }
+}
+
+/* Prevent horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 400px) {
+  .image-block-mobile {
+    width: 100px !important;
+    min-height: 120px !important;
+  }
+  .dish-title-text {
+    font-size: 14px !important;
+  }
+  .dish-price-text {
+    font-size: 16px !important;
+  }
+}
+
+/* ============================================
+   COMPLETE RESPONSIVE SYSTEM — ALL DEVICES
+   ============================================ */
+
+/* Base mobile first */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* ---- HEADER ---- */
+.site-header {
+  padding: 10px 12px !important;
+}
+
+@media (min-width: 480px) {
+  .site-header { padding: 12px 16px !important; }
+}
+
+@media (min-width: 768px) {
+  .site-header { padding: 14px 24px !important; }
+}
+
+@media (min-width: 1024px) {
+  .site-header { padding: 16px 32px !important; }
+}
+
+/* ---- MENU GRID ---- */
+.responsive-menu-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 480px) {
+  .responsive-menu-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+@media (min-width: 640px) {
+  .responsive-menu-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (min-width: 900px) {
+  .responsive-menu-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .responsive-menu-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .responsive-menu-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px;
+  }
+}
+
+/* ---- MENU CARD IMAGE ---- */
+.image-block-responsive {
+  width: 100px !important;
+  min-height: 110px !important;
+}
+
+@media (min-width: 400px) {
+  .image-block-responsive {
+    width: 110px !important;
+    min-height: 120px !important;
+  }
+}
+
+@media (min-width: 640px) {
+  .image-block-responsive {
+    width: 130px !important;
+    min-height: 140px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .image-block-responsive {
+    width: 150px !important;
+    min-height: 160px !important;
+  }
+}
+
+/* ---- MENU CARD TEXT ---- */
+.dish-title-text {
+  font-size: 13px !important;
+}
+
+@media (min-width: 400px) {
+  .dish-title-text { font-size: 14px !important; }
+}
+
+@media (min-width: 640px) {
+  .dish-title-text { font-size: 16px !important; }
+}
+
+@media (min-width: 1024px) {
+  .dish-title-text { font-size: 18px !important; }
+}
+
+.dish-desc-text {
+  font-size: 11px !important;
+}
+
+@media (min-width: 640px) {
+  .dish-desc-text { font-size: 13px !important; }
+}
+
+@media (min-width: 1024px) {
+  .dish-desc-text { font-size: 14px !important; }
+}
+
+.dish-price-text {
+  font-size: 16px !important;
+}
+
+@media (min-width: 400px) {
+  .dish-price-text { font-size: 18px !important; }
+}
+
+@media (min-width: 640px) {
+  .dish-price-text { font-size: 20px !important; }
+}
+
+@media (min-width: 1024px) {
+  .dish-price-text { font-size: 22px !important; }
+}
+
+.dish-tag-text {
+  font-size: 9px !important;
+  padding: 2px 6px !important;
+}
+
+@media (min-width: 640px) {
+  .dish-tag-text {
+    font-size: 10px !important;
+    padding: 3px 8px !important;
+  }
+}
+
+/* ---- CATEGORY PILLS ---- */
+.category-scroll {
+  gap: 6px !important;
+  padding-bottom: 8px !important;
+}
+
+@media (min-width: 640px) {
+  .category-scroll { gap: 8px !important; }
+}
+
+@media (min-width: 1024px) {
+  .category-scroll { gap: 10px !important; }
+}
+
+/* ---- HERO SECTION ---- */
+.hero-banner {
+  padding: 16px !important;
+  border-radius: 16px !important;
+}
+
+@media (min-width: 640px) {
+  .hero-banner {
+    padding: 20px !important;
+    border-radius: 20px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-banner { padding: 28px !important; }
+}
+
+/* ---- CART DRAWER ---- */
+.cart-drawer {
+  max-width: 100vw !important;
+}
+
+@media (min-width: 480px) {
+  .cart-drawer { max-width: 400px !important; }
+}
+
+@media (min-width: 768px) {
+  .cart-drawer { max-width: 440px !important; }
+}
+
+/* ---- AI CHAT BUTTON ---- */
+.zara-fab {
+  bottom: 16px !important;
+  right: 12px !important;
+  width: 54px !important;
+  height: 54px !important;
+  font-size: 22px !important;
+}
+
+@media (min-width: 480px) {
+  .zara-fab {
+    bottom: 20px !important;
+    right: 16px !important;
+    width: 58px !important;
+    height: 58px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .zara-fab {
+    bottom: 24px !important;
+    right: 24px !important;
+    width: 62px !important;
+    height: 62px !important;
+    font-size: 26px !important;
+  }
+}
+
+/* ---- AI CHAT PANEL ---- */
+.ai-chat-panel {
+  padding: 12px 12px 16px !important;
+}
+
+@media (min-width: 480px) {
+  .ai-chat-panel { padding: 14px 14px 18px !important; }
+}
+
+@media (min-width: 768px) {
+  .ai-chat-panel { padding: 16px 16px 20px !important; }
+}
+
+/* ---- SECTION HEADERS ---- */
+.section-header-title {
+  font-size: 18px !important;
+}
+
+@media (min-width: 480px) {
+  .section-header-title { font-size: 20px !important; }
+}
+
+@media (min-width: 768px) {
+  .section-header-title { font-size: 24px !important; }
+}
+
+/* ---- SEARCH BAR ---- */
+.search-bar {
+  font-size: 13px !important;
+  padding: 12px 12px 12px 42px !important;
+}
+
+@media (min-width: 640px) {
+  .search-bar {
+    font-size: 14px !important;
+    padding: 14px 16px 14px 48px !important;
+  }
+}
+
+/* ---- ADMIN PANEL ---- */
+@media (max-width: 640px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  .admin-table-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1024px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+  .admin-table-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* ---- ORDER CARDS ---- */
+@media (max-width: 480px) {
+  .order-card-title { font-size: 13px !important; }
+  .order-card-amount { font-size: 15px !important; }
+}
+
+/* ---- PREVENT OVERFLOW ---- */
+img, video, iframe {
+  max-width: 100%;
+}
+
+input, button, select {
+  max-width: 100%;
+  font-size: 16px; /* prevents iOS zoom on input focus */
+}
+
+/* ---- SAFE AREA FOR NOTCH PHONES ---- */
+.bottom-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+.top-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ---- TOUCH FRIENDLY ---- */
+button {
+  min-height: 36px;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  button {
+    min-height: 40px;
+  }
+}
+
+/* ---- SCROLLBAR ---- */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---- ANIMATIONS — reduce on mobile for performance ---- */
+@media (max-width: 640px) {
+  .card-lift:hover {
+    transform: none !important;
+  }
+  .float {
+    animation: none !important;
+  }
+}
