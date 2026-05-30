@@ -1,5 +1,5 @@
 import { ChatGroq } from '@langchain/groq'
-import { HuggingFaceInferenceEmbeddings } from '@langchain/community/embeddings/hf.js'
+import { HuggingFaceInferenceEmbeddings } from '@langchain/community/embeddings/hf'
 
 export const llm = new ChatGroq({
   apiKey: process.env.GROQ_API_KEY,
