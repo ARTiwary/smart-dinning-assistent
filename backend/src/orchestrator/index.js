@@ -10,11 +10,14 @@ import { getCart, getCartTotal } from '../services/cartService.js';
 import { prisma } from '../db/prisma.js';
 
 function getTimeOfDay() {
-  const hour = new Date().getHours();
-  if (hour >= 7 && hour < 12) return 'Breakfast';
-  if (hour >= 12 && hour < 16) return 'Lunch';
-  if (hour >= 16 && hour < 19) return 'Evening';
-  return 'Dinner';
+  // Use IST (UTC+5:30)
+  const now = new Date()
+  const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+  const hour = ist.getUTCHours()
+  if (hour >= 7 && hour < 12) return 'Morning'
+  if (hour >= 12 && hour < 16) return 'Afternoon'
+  if (hour >= 16 && hour < 19) return 'Evening'
+  return 'Dinner'
 }
 
 export async function orchestrate(sessionId, userMessage, isFirstMessage = false) {

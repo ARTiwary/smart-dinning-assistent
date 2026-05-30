@@ -46,12 +46,13 @@ ${menuContext}
 Rules:
 - Suggest at most 3 items from the list above ONLY
 - Never suggest items already in cart
-- Be warm, brief, max 2 sentences
+- Be warm and brief — DO NOT greet or say welcome again, just recommend
+- No "Namaste", no "Welcome", no "Good morning" — go straight to suggestions
 - Respond in same language as user
 
 Respond ONLY with this JSON, no markdown:
 {
-  "message": "your warm intro",
+  "message": "brief recommendation intro only",
   "suggestions": [
     {"itemId": "exact ID from list", "name": "name", "price": 0, "reason": "one line"}
   ]
