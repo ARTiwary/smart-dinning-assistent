@@ -67,20 +67,29 @@ export default function TablePage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: '120px', position: 'relative', zIndex: 1 }}>
-      {/* Header */}
+    <div style={{
+      minHeight: '100vh',
+      paddingBottom: '120px',
+      paddingTop: '68px',   // offset for fixed header
+      position: 'relative',
+      zIndex: 1
+    }}>
+      {/* Fixed Header */}
       <header style={{
-        position: 'fixed', top: 0, zIndex: 40,
-        background: 'rgba(13,10,15,0.92)',
+        position: 'fixed',
+        top: 0, left: 0, right: 0,
+        zIndex: 40,
+        background: 'rgba(13,10,15,0.95)',
         backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,107,53,0.12)',
-        padding: '12px 16px',    // ← smaller padding on mobile
+        padding: '12px 16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         width: '100%',
         boxSizing: 'border-box',
-        }}>
+      }}>
         <div>
           <h1 style={{
             fontFamily: 'var(--font-display)',
@@ -94,7 +103,13 @@ export default function TablePage() {
           }}>
             🍛 Spice Garden
           </h1>
-          <p style={{ color: 'var(--coral)', fontSize: '11px', marginTop: '2px', fontWeight: 500, letterSpacing: '0.05em' }}>
+          <p style={{
+            color: 'var(--coral)',
+            fontSize: '11px',
+            marginTop: '2px',
+            fontWeight: 500,
+            letterSpacing: '0.05em'
+          }}>
             TABLE {tableId} • AI DINING
           </p>
         </div>
@@ -111,7 +126,7 @@ export default function TablePage() {
 
 function HeroSection({ sessionId }) {
   const [picks, setPicks] = useState([])
-  const { addToCart, session } = useStore()
+  const { addToCart, session, menu, setCartOpen } = useStore()
 
   useEffect(() => {
     if (!sessionId) return
@@ -126,15 +141,23 @@ function HeroSection({ sessionId }) {
     fetchPicks()
   }, [sessionId])
 
+  function handleAdd(item) {
+    if (!session?.id) return
+    addToCart(session.id, item.itemId, item.name, item.price)
+    // Flash cart open briefly to show item added
+    setCartOpen(true)
+    setTimeout(() => setCartOpen(false), 1200)
+  }
+
   return (
-    <div style={{ padding: '20px 20px 10px' }}>
+    <div style={{ padding: '16px 16px 10px' }}>
       {/* Hero banner */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(255,107,157,0.1) 50%, rgba(196,77,255,0.08) 100%)',
         border: '1px solid rgba(255,107,53,0.2)',
         borderRadius: '20px',
         padding: '20px',
-        marginBottom: '24px',
+        marginBottom: '20px',
         position: 'relative',
         overflow: 'hidden'
       }}>
@@ -144,7 +167,11 @@ function HeroSection({ sessionId }) {
           background: 'radial-gradient(circle, rgba(255,107,53,0.2), transparent)',
           borderRadius: '50%'
         }} />
-        <p style={{ color: 'var(--blush)', fontSize: '12px', fontWeight: 600, letterSpacing: '0.1em', marginBottom: '6px' }}>
+        <p style={{
+          color: 'var(--blush)',
+          fontSize: '12px', fontWeight: 600,
+          letterSpacing: '0.1em', marginBottom: '6px'
+        }}>
           ✨ WELCOME BACK
         </p>
         <h2 style={{
@@ -166,10 +193,13 @@ function HeroSection({ sessionId }) {
         </p>
       </div>
 
-      {/* AI picks */}
+      {/* AI Picks with real food images */}
       {picks.length > 0 && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            gap: '8px', marginBottom: '14px'
+          }}>
             <span style={{ fontSize: '16px' }}>⭐</span>
             <h3 style={{
               fontFamily: 'var(--font-display)',
@@ -177,52 +207,101 @@ function HeroSection({ sessionId }) {
               color: 'var(--text-primary)'
             }}>AI Picks For You</h3>
           </div>
-          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }} className="scrollbar-hide">
-            {picks.map((item, i) => (
-              <div key={item.itemId} className="card-lift" style={{
-                minWidth: '160px',
-                background: 'var(--grad-card)',
-                border: '1px solid rgba(255,107,53,0.2)',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                animation: `slideUp 0.5s ${i * 0.1}s both`
-              }}>
-                {/* Image placeholder */}
-                <div className="shimmer" style={{
-                  width: '100%', height: '100px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '32px'
+
+          <div style={{
+            display: 'flex', gap: '12px',
+            overflowX: 'auto', paddingBottom: '8px'
+          }} className="scrollbar-hide">
+            {picks.map((item, i) => {
+              // Find real menu item to get imageUrl
+              const menuItem = menu.find(m => m.id === item.itemId)
+              const imageUrl = menuItem?.imageUrl
+
+              return (
+                <div key={item.itemId} className="card-lift" style={{
+                  minWidth: '160px', maxWidth: '160px',
+                  background: 'var(--grad-card)',
+                  border: '1px solid rgba(255,107,53,0.2)',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  animation: `slideUp 0.5s ${i * 0.1}s both`,
+                  flexShrink: 0,
                 }}>
-                  🍽️
-                </div>
-                <div style={{ padding: '10px' }}>
-                  <p style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>
-                    {item.name}
-                  </p>
-                  <p style={{ color: 'var(--coral)', fontSize: '11px', marginBottom: '8px' }}>{item.reason}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{
-                      background: 'var(--grad-btn)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                      fontWeight: 700, fontSize: '14px'
-                    }}>₹{item.price}</span>
-                    <button
-                      onClick={() => addToCart(session?.id, item.itemId, item.name, item.price)}
-                      className="btn-press"
-                      style={{
+                  {/* Food image */}
+                  <div style={{
+                    width: '100%', height: '100px',
+                    overflow: 'hidden', position: 'relative',
+                    background: 'linear-gradient(135deg, rgba(255,107,53,0.12), rgba(255,107,157,0.08))',
+                  }}>
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={item.name}
+                        style={{
+                          width: '100%', height: '100%',
+                          objectFit: 'cover',
+                          transition: 'transform 0.3s ease',
+                        }}
+                        onError={e => {
+                          e.target.style.display = 'none'
+                          e.target.parentNode.querySelector('.fallback-emoji').style.display = 'flex'
+                        }}
+                      />
+                    ) : null}
+                    <div className="fallback-emoji" style={{
+                      display: imageUrl ? 'none' : 'flex',
+                      width: '100%', height: '100%',
+                      alignItems: 'center', justifyContent: 'center',
+                      fontSize: '36px',
+                      position: imageUrl ? 'absolute' : 'relative',
+                      top: 0, left: 0,
+                    }}>🍽️</div>
+                  </div>
+
+                  <div style={{ padding: '10px' }}>
+                    <p style={{
+                      color: 'var(--text-primary)',
+                      fontSize: '13px', fontWeight: 600,
+                      marginBottom: '4px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{item.name}</p>
+                    <p style={{
+                      color: 'var(--coral)',
+                      fontSize: '11px', marginBottom: '8px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{item.reason}</p>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{
                         background: 'var(--grad-btn)',
-                        border: 'none', color: '#fff',
-                        fontSize: '11px', fontWeight: 700,
-                        padding: '5px 10px', borderRadius: '20px',
-                        cursor: 'pointer'
-                      }}
-                    >+ Add</button>
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                        fontWeight: 700, fontSize: '14px'
+                      }}>₹{item.price}</span>
+                      <button
+                        onClick={() => handleAdd(item)}
+                        className="btn-press"
+                        style={{
+                          background: 'var(--grad-btn)',
+                          border: 'none', color: '#fff',
+                          fontSize: '11px', fontWeight: 700,
+                          padding: '5px 10px', borderRadius: '20px',
+                          cursor: 'pointer'
+                        }}
+                      >+ Add</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

@@ -552,19 +552,27 @@ function OrderModal({ order, onClose, onStatusChange }) {
             fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
           }}>Mark as {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)} →</button>
         )}
-        {order.status === 'pending' && (
+       {['pending', 'confirmed'].includes(order.status?.toLowerCase()) && (
   <button
     onClick={async () => {
       if (!confirm('Cancel this order?')) return
-      await axios.patch(`${API}/api/admin/orders/${order.id}/cancel`, {}, { headers })
-      onStatusChange(order.id, 'cancelled')
-      onClose()
+      try {
+        await axios.patch(
+          `${API}/api/admin/orders/${order.id}/cancel`,
+          {},
+          { headers }
+        )
+        onStatusChange(order.id, 'cancelled')
+        onClose()
+      } catch(e) {
+        alert('Could not cancel order')
+      }
     }}
     style={{
       width: '100%', marginTop: '10px',
-      background: 'transparent',
+      background: 'rgba(255,100,100,0.08)',
       border: '1px solid rgba(255,100,100,0.3)',
-      color: '#ff6b6b', padding: '12px', borderRadius: '14px',
+      color: '#ff6b6b', padding: '14px', borderRadius: '14px',
       fontSize: '14px', fontWeight: 600, cursor: 'pointer',
       fontFamily: 'sans-serif',
     }}

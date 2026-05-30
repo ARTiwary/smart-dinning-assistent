@@ -27,7 +27,7 @@ export default function AIChat({ sessionId }) {
   const [unread, setUnread] = useState(false)
   const bottomRef = useRef(null)
   const messagesRef = useRef(messages)
-  const { addToCart, session } = useStore()
+  const { addToCart, session, setCartOpen } = useStore()
 
   useEffect(() => { messagesRef.current = messages }, [messages])
 
@@ -313,10 +313,13 @@ export default function AIChat({ sessionId }) {
                             </div>
                             <button
                               onClick={() => {
-const sid = session?.id || sessionId
-  if (!sid) return
-  addToCart(sid, s.itemId || s.id, s.name, s.price)
-}}
+                                const sid = session?.id || sessionId
+                                if (!sid) return
+                                addToCart(sid, s.itemId || s.id, s.name, s.price)
+                                // Flash cart open for 1.5 seconds
+                                setCartOpen(true)
+                                setTimeout(() => setCartOpen(false), 1500)
+                              }}
                               className="btn-press"
                               style={{
                                 background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
