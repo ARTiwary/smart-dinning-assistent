@@ -13,10 +13,11 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export default function TablePage() {
   const { tableId } = useParams()
-  const { setSession, setMenu, session } = useStore()
+  const { setSession, setMenu, session, initDevice } = useStore()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    initDevice()
     async function init() {
       try {
         const { data: sess } = await axios.get(`${API}/api/table/${tableId}/session`)
@@ -69,7 +70,7 @@ export default function TablePage() {
     <div style={{ minHeight: '100vh', paddingBottom: '120px', position: 'relative', zIndex: 1 }}>
       {/* Header */}
       <header style={{
-        position: 'sticky', top: 0, zIndex: 40,
+        position: 'fixed', top: 0, zIndex: 40,
         background: 'rgba(13,10,15,0.92)',
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,107,53,0.12)',

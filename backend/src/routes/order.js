@@ -21,4 +21,21 @@ router.get('/order/:orderId', async (req, res) => {
   res.json(order);
 });
 
+router.patch('/order/:orderId/cancel', async (req, res) => {
+  try {
+    const order = await prisma.order.findUnique({ where: { id: req.params.orderId } })
+    if (!order) return res.status(404).json({ error: 'Order not found' })
+    if (!['pending'].includes(order.status)) {
+      return res.status(400).json({ error: 'Order cannot be cancelled — already being prepared' })
+    }
+    const updated = await prisma.order.update({
+      where: { id: req.params.orderId },
+      data: { status: 'cancelled' }
+    })
+    res.json(updated)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 export default router;

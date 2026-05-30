@@ -26,7 +26,8 @@ export default function CartDrawer() {
   const [orderPlaced, setOrderPlaced] = useState(null)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
-
+  const [cancelling, setCancelling] = useState(false)
+  
   useEffect(() => {
     if (session?.id) fetchCart(session.id)
   }, [session])
@@ -71,6 +72,18 @@ export default function CartDrawer() {
     setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
   }
   setLoading(false)
+}
+async function cancelOrder(orderId) {
+  if (!confirm('Are you sure you want to cancel your order?')) return
+  setCancelling(true)
+  try {
+    await axios.patch(`${API}/api/order/${orderId}/cancel`)
+    setOrderPlaced(null)
+    alert('Order cancelled successfully.')
+  } catch (e) {
+    alert('Could not cancel — order may already be preparing.')
+  }
+  setCancelling(false)
 }
 
   const inputStyle = (hasError) => ({
@@ -748,17 +761,44 @@ export default function CartDrawer() {
 
 
 {orderPlaced && (
-  <div style={{
-    position: 'fixed', inset: 0, zIndex: 99999,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '24px', background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(16px)',
-  }}>
-    <div style={{
-      background: 'linear-gradient(145deg, #1a1220, #201628)',
-      border: '1px solid rgba(74,222,128,0.2)',
-      borderRadius: '28px', padding: '36px 28px',
-      width: '100%', maxWidth: '360px', textAlign: 'center',
-    }}>
+   <div
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+
+      zIndex: 99999,
+
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      background: 'rgba(0,0,0,0.92)',
+      backdropFilter: 'blur(16px)',
+
+      padding: '16px',
+      boxSizing: 'border-box',
+    }}
+  >
+    <div
+      style={{
+        background: 'linear-gradient(145deg, #1a1220, #201628)',
+        border: '1px solid rgba(74,222,128,0.2)',
+        borderRadius: '28px',
+
+        width: '100%',
+        maxWidth: '360px',
+
+        padding: '36px 28px',
+        textAlign: 'center',
+
+        boxShadow: '0 20px 80px rgba(0,0,0,0.55)',
+
+        transform: 'translateY(0)',
+      }}
+    >
       <div style={{ fontSize: '64px', marginBottom: '12px' }}>🎉</div>
       <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 700, color: '#fff5f0', marginBottom: '6px' }}>Order Placed!</h3>
       <p style={{ color: '#7a5f58', fontSize: '12px', marginBottom: '6px' }}>#{orderPlaced.id?.slice(0, 8).toUpperCase()}</p>
@@ -782,10 +822,24 @@ export default function CartDrawer() {
         border: 'none', color: '#fff', padding: '15px', borderRadius: '14px',
         fontSize: '15px', fontWeight: 700, cursor: 'pointer',
       }}>🍽️ Explore More Menu</button>
+      {orderPlaced.status === 'pending' && (
+  <button
+    onClick={() => cancelOrder(orderPlaced.id)}
+    disabled={cancelling}
+    style={{
+      width: '100%', marginBottom: '10px',
+      background: 'transparent',
+      border: '1px solid rgba(255,100,100,0.3)',
+      color: '#ff6b6b', padding: '12px', borderRadius: '14px',
+      fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+    }}
+  >{cancelling ? 'Cancelling...' : '✕ Cancel Order'}</button>
+)}
       <button onClick={() => setOrderPlaced(null)} style={{
         width: '100%', background: 'transparent', border: 'none',
         color: '#7a5f58', padding: '8px', cursor: 'pointer', fontSize: '13px',
       }}>Close</button>
+
     </div>
   </div>
 )}

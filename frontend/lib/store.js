@@ -3,12 +3,23 @@ import axios from 'axios'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
+function getDeviceId() {
+  if (typeof window === 'undefined') return 'server'
+  let id = localStorage.getItem('deviceId')
+  if (!id) {
+    id = `device-${Math.random().toString(36).slice(2)}`
+    localStorage.setItem('deviceId', id)
+  }
+  return id
+}
+
 export const useStore = create((set, get) => ({
   session: null,
   menu: [],
   cart: [],
   cartOpen: false,
   users: [],
+  deviceId: null,
 
   setSession: (session) => set({ session }),
   setMenu: (menu) => set({ menu }),
@@ -16,17 +27,16 @@ export const useStore = create((set, get) => ({
   setCartOpen: (open) => set({ cartOpen: open }),
   addUser: (user) => set(s => ({ users: [...s.users.filter(u => u !== user), user] })),
 
-  addToCart: async (sessionId, menuItemId, name, price, addedBy = 'You') => {
-    if (!sessionId) return
+  initDevice: () => {
+    const deviceId = getDeviceId()
+    set({ deviceId })
+    return deviceId
+  },
 
-    // Optimistic update
-    const tempItem = {
-      id: `temp-${menuItemId}`,
-      menuItemId,
-      quantity: 1,
-      addedBy,
-      menuItem: { name, price }
-    }
+  addToCart: async (sessionId, menuItemId, name, price) => {
+    if (!sessionId) return
+    const deviceId = get().deviceId || getDeviceId()
+
     const existing = get().cart.find(c => c.menuItemId === menuItemId)
     if (existing) {
       set(s => ({
@@ -36,12 +46,18 @@ export const useStore = create((set, get) => ({
         )
       }))
     } else {
-      set(s => ({ cart: [...s.cart, tempItem] }))
+      set(s => ({ cart: [...s.cart, {
+        id: `temp-${menuItemId}`,
+        menuItemId,
+        quantity: 1,
+        addedBy: deviceId,
+        menuItem: { name, price }
+      }]}))
     }
 
     try {
       await axios.post(`${API}/api/session/${sessionId}/cart`, {
-        menuItemId, qty: 1, addedBy
+        menuItemId, qty: 1, addedBy: deviceId
       })
       await get().fetchCart(sessionId)
     } catch (e) {
@@ -51,7 +67,6 @@ export const useStore = create((set, get) => ({
   },
 
   removeFromCart: async (sessionId, cartItemId) => {
-    // Optimistic update
     set(s => ({ cart: s.cart.filter(c => c.id !== cartItemId) }))
     try {
       await axios.delete(`${API}/api/session/${sessionId}/cart/${cartItemId}`)
@@ -63,12 +78,9 @@ export const useStore = create((set, get) => ({
 
   updateQty: async (sessionId, cartItemId, quantity) => {
     if (quantity < 1) return get().removeFromCart(sessionId, cartItemId)
-
-    // Optimistic update
     set(s => ({
       cart: s.cart.map(c => c.id === cartItemId ? { ...c, quantity } : c)
     }))
-
     try {
       await axios.patch(`${API}/api/session/${sessionId}/cart/${cartItemId}`, { quantity })
     } catch (e) {
@@ -79,9 +91,12 @@ export const useStore = create((set, get) => ({
 
   fetchCart: async (sessionId) => {
     if (!sessionId) return
+    const deviceId = get().deviceId || getDeviceId()
     try {
       const { data } = await axios.get(`${API}/api/session/${sessionId}/cart`)
-      set({ cart: data })
+      // Filter to show only THIS device's items
+      const myItems = data.filter(item => item.addedBy === deviceId)
+      set({ cart: myItems })
     } catch (e) {
       console.error('fetchCart error:', e)
     }

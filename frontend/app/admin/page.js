@@ -16,6 +16,7 @@ const STATUS_COLORS = {
   preparing: { bg: 'rgba(196,77,255,0.15)', border: 'rgba(196,77,255,0.4)', text: '#c44dff' },
   ready:     { bg: 'rgba(74,222,128,0.15)', border: 'rgba(74,222,128,0.4)', text: '#4ade80' },
   delivered: { bg: 'rgba(100,100,100,0.15)', border: 'rgba(100,100,100,0.3)', text: '#888' },
+  cancelled: { bg: 'rgba(255,100,100,0.15)', border: 'rgba(255,100,100,0.3)', text: '#ff6b6b' },
 }
 
 const STATUS_FLOW = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
@@ -551,6 +552,24 @@ function OrderModal({ order, onClose, onStatusChange }) {
             fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
           }}>Mark as {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)} →</button>
         )}
+        {order.status === 'pending' && (
+  <button
+    onClick={async () => {
+      if (!confirm('Cancel this order?')) return
+      await axios.patch(`${API}/api/admin/orders/${order.id}/cancel`, {}, { headers })
+      onStatusChange(order.id, 'cancelled')
+      onClose()
+    }}
+    style={{
+      width: '100%', marginTop: '10px',
+      background: 'transparent',
+      border: '1px solid rgba(255,100,100,0.3)',
+      color: '#ff6b6b', padding: '12px', borderRadius: '14px',
+      fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+      fontFamily: 'sans-serif',
+    }}
+  >✕ Cancel Order</button>
+)}
       </div>
     </div>
   )

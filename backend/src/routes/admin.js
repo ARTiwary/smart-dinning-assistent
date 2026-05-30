@@ -84,4 +84,16 @@ router.patch('/sessions/:id/close', adminAuth, async (req, res) => {
   res.json(session);
 });
 
+router.patch('/orders/:id/cancel', adminAuth, async (req, res) => {
+  try {
+    const order = await prisma.order.update({
+      where: { id: req.params.id },
+      data: { status: 'cancelled' }
+    })
+    res.json(order)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 export default router;
