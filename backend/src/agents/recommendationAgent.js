@@ -81,22 +81,20 @@ Respond ONLY with this JSON, no markdown:
   ]
 }`;
 
-  const response = await llm.invoke(prompt);
+  const response = await llm.invoke(prompt)
 
   try {
-    const raw = typeof response === 'string' ? response : response.content
-const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-    
-    // Ensure both item identification keys are universally populated
+    const text = typeof response === 'string' ? response : response.content
+    const clean = text.replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(clean)
     if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
       parsed.suggestions = parsed.suggestions.map(s => ({
         ...s,
         id: s.itemId || s.id,
         itemId: s.itemId || s.id
-      }));
+      }))
     }
-    return parsed;
+    return parsed
   } catch {
     return {
       message: "Here are some great options for you!",
