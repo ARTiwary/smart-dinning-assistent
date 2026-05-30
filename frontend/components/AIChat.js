@@ -16,6 +16,34 @@ const QUICK_BUTTONS = [
   { label: '👥 For Groups', message: 'we are a group, suggest shareable dishes' },
   { label: '👨‍🍳 Chef Special', message: 'what is the chef special today' },
 ]
+function SuggestionImage({ itemId, fallback }) {
+  const { menu } = useStore()
+  const [error, setError] = useState(false)
+
+  const menuItem = menu?.find(m => m.id === itemId)
+  const imageUrl = menuItem?.imageUrl
+
+  if (imageUrl && !error) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        onError={() => setError(true)}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
+      />
+    )
+  }
+
+  return (
+    <span style={{ fontSize: '22px' }}>
+      {fallback}
+    </span>
+  )
+}
 
 export default function AIChat({ sessionId }) {
   const [open, setOpen] = useState(false)
@@ -27,7 +55,7 @@ export default function AIChat({ sessionId }) {
   const [unread, setUnread] = useState(false)
   const bottomRef = useRef(null)
   const messagesRef = useRef(messages)
-  const { addToCart, session, setCartOpen } = useStore()
+  const { addToCart, session, setCartOpen, } = useStore()
 
   useEffect(() => { messagesRef.current = messages }, [messages])
 
@@ -289,12 +317,14 @@ export default function AIChat({ sessionId }) {
                             animation: `slideUp 0.4s ${j * 0.1}s both`
                           }}>
                             <div style={{
-                              width: '44px', height: '44px',
-                              borderRadius: '10px',
-                              background: 'linear-gradient(135deg, rgba(255,107,157,0.2), rgba(255,107,53,0.15))',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: '20px', flexShrink: 0
-                            }}>🍽️</div>
+                            width: '52px', height: '52px',
+                            borderRadius: '10px',
+                            background: 'linear-gradient(135deg, rgba(255,107,157,0.2), rgba(255,107,53,0.15))',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <SuggestionImage itemId={s.itemId || s.id} fallback="🍽️" /></div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{
                                 color: 'var(--text-primary)',
