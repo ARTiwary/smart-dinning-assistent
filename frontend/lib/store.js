@@ -33,38 +33,40 @@ export const useStore = create((set, get) => ({
     return deviceId
   },
 
-  addToCart: async (sessionId, menuItemId, name, price) => {
-    if (!sessionId) return
-    const deviceId = get().deviceId || getDeviceId()
+  addToCart: async (sessionId, menuItemId, name, price, addedBy = 'You') => {
+  if (!sessionId) return
+  const deviceId = get().deviceId || getDeviceId()
 
-    const existing = get().cart.find(c => c.menuItemId === menuItemId)
-    if (existing) {
-      set(s => ({
-        cart: s.cart.map(c => c.menuItemId === menuItemId
-          ? { ...c, quantity: c.quantity + 1 }
-          : c
-        )
-      }))
-    } else {
-      set(s => ({ cart: [...s.cart, {
-        id: `temp-${menuItemId}`,
-        menuItemId,
-        quantity: 1,
-        addedBy: deviceId,
-        menuItem: { name, price }
-      }]}))
-    }
+  // Optimistic update immediately
+  const existing = get().cart.find(c => c.menuItemId === menuItemId)
+  if (existing) {
+    set(s => ({
+      cart: s.cart.map(c => c.menuItemId === menuItemId
+        ? { ...c, quantity: c.quantity + 1 }
+        : c
+      )
+    }))
+  } else {
+    set(s => ({ cart: [...s.cart, {
+      id: `temp-${menuItemId}-${Date.now()}`,
+      menuItemId,
+      quantity: 1,
+      addedBy: deviceId,
+      menuItem: { name, price }
+    }]}))
+  }
 
-    try {
-      await axios.post(`${API}/api/session/${sessionId}/cart`, {
-        menuItemId, qty: 1, addedBy: deviceId
-      })
-      await get().fetchCart(sessionId)
-    } catch (e) {
-      console.error('addToCart error:', e.response?.data || e.message)
-      await get().fetchCart(sessionId)
-    }
-  },
+  try {
+    await axios.post(`${API}/api/session/${sessionId}/cart`, {
+      menuItemId, qty: 1, addedBy: deviceId
+    })
+    // Always fetch real cart after API call
+    await get().fetchCart(sessionId)
+  } catch (e) {
+    console.error('addToCart error:', e.response?.data || e.message)
+    await get().fetchCart(sessionId)
+  }
+},
 
   removeFromCart: async (sessionId, cartItemId) => {
     set(s => ({ cart: s.cart.filter(c => c.id !== cartItemId) }))

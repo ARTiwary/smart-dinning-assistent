@@ -90,52 +90,55 @@ export default function AIChat({ sessionId }) {
   return (
     <>
       {/* Floating Zara button */}
-      <div style={{ position: 'fixed', bottom: '20px', right: '16px', zIndex: 9999, WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)',}}>
+      <div style={{ position: 'fixed', bottom: '20px', right: '16px', zIndex: 9998, display: 'flex', flexDirection: 'column', alignItems: 'flex-end',}}>
         {/* Ripple rings */}
         {!open && (
-          <>
-            <div style={{
-              position: 'absolute', inset: '-8px',
-              borderRadius: '50%',
-              border: '2px solid rgba(255,107,157,0.4)',
-              animation: 'pulse-ring 2s ease-out infinite',
-              pointerEvents: 'none'
-            }} />
-            <div style={{
-              position: 'absolute', inset: '-16px',
-              borderRadius: '50%',
-              border: '2px solid rgba(255,107,157,0.2)',
-              animation: 'pulse-ring 2s ease-out 0.4s infinite',
-              pointerEvents: 'none'
-            }} />
-          </>
-        )}
-
-        {/* Tooltip */}
-        {!open && (
-          <div style={{
-            position: 'absolute',
-            bottom: '70px', right: '0',
-            background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
-            color: '#fff',
-            fontSize: '12px', fontWeight: 600,
-            padding: '8px 14px',
-            borderRadius: '16px 16px 4px 16px',
-            whiteSpace: 'nowrap',
-            boxShadow: '0 8px 24px rgba(255,107,157,0.4)',
-            animation: 'floatTooltip 3s ease-in-out infinite',
-            fontFamily: 'var(--font-body)',
-            pointerEvents: 'none'
-          }}>
-            ✨ May I suggest something?
-            <div style={{
-              position: 'absolute', bottom: '-6px', right: '14px',
-              width: '10px', height: '10px',
-              background: 'var(--flame)',
-              clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
-            }} />
-          </div>
-        )}
+      <>
+        <div style={{
+          position: 'absolute', inset: '-8px',
+          borderRadius: '50%',
+          border: '2px solid rgba(255,107,157,0.4)',
+          animation: 'pulse-ring 2s ease-out infinite',
+          pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute', inset: '-16px',
+          borderRadius: '50%',
+          border: '2px solid rgba(255,107,157,0.2)',
+          animation: 'pulse-ring 2s ease-out 0.4s infinite',
+          pointerEvents: 'none'
+        }} />
+      </>
+    )}
+{/* Tooltip */}
+{!open && (
+  <div style={{
+    position: 'absolute',
+    bottom: '72px',
+    right: '0',
+    zIndex: 9999,          // ← high z-index
+    background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+    color: '#fff',
+    fontSize: '12px', fontWeight: 600,
+    padding: '8px 14px',
+    borderRadius: '16px 16px 4px 16px',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 8px 24px rgba(255,107,157,0.4)',
+    animation: 'floatTooltip 3s ease-in-out infinite',
+    fontFamily: 'var(--font-body)',
+    pointerEvents: 'none',
+    minWidth: 'max-content',   // ← never wraps
+  }}>
+    ✨ May I suggest something?
+    <div style={{
+      position: 'absolute',
+      bottom: '-6px', right: '18px',
+      width: '10px', height: '10px',
+      background: '#ff6b35',
+      clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+    }} />
+  </div>
+)}
 
         {/* Main button */}
         <button
@@ -313,13 +316,12 @@ export default function AIChat({ sessionId }) {
                             </div>
                             <button
                               onClick={() => {
-                                const sid = session?.id || sessionId
-                                if (!sid) return
-                                addToCart(sid, s.itemId || s.id, s.name, s.price)
-                                // Flash cart open for 1.5 seconds
-                                setCartOpen(true)
-                                setTimeout(() => setCartOpen(false), 1500)
-                              }}
+  const sid = session?.id || sessionId
+  if (!sid) return
+  addToCart(sid, s.itemId || s.id, s.name, s.price)
+  setCartOpen(true)
+  setTimeout(() => setCartOpen(false), 1200)
+}}
                               className="btn-press"
                               style={{
                                 background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
