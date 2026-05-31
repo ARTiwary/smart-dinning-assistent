@@ -35,9 +35,15 @@ export const useStore = create((set, get) => ({
 
   addToCart: async (sessionId, menuItemId, name, price, addedBy = 'You') => {
   if (!sessionId) return
-  const deviceId = get().deviceId || getDeviceId()
+  
+  // Make sure deviceId is initialized
+  let deviceId = get().deviceId
+  if (!deviceId) {
+    deviceId = getDeviceId()
+    set({ deviceId })
+  }
 
-  // Optimistic update immediately
+  // Optimistic update
   const existing = get().cart.find(c => c.menuItemId === menuItemId)
   if (existing) {
     set(s => ({
@@ -60,7 +66,6 @@ export const useStore = create((set, get) => ({
     await axios.post(`${API}/api/session/${sessionId}/cart`, {
       menuItemId, qty: 1, addedBy: deviceId
     })
-    // Always fetch real cart after API call
     await get().fetchCart(sessionId)
   } catch (e) {
     console.error('addToCart error:', e.response?.data || e.message)
@@ -92,15 +97,19 @@ export const useStore = create((set, get) => ({
   },
 
   fetchCart: async (sessionId) => {
-    if (!sessionId) return
-    const deviceId = get().deviceId || getDeviceId()
-    try {
-      const { data } = await axios.get(`${API}/api/session/${sessionId}/cart`)
-      // Filter to show only THIS device's items
-      const myItems = data.filter(item => item.addedBy === deviceId)
-      set({ cart: myItems })
-    } catch (e) {
-      console.error('fetchCart error:', e)
-    }
-  },
+  if (!sessionId) return
+  const deviceId = get().deviceId || getDeviceId()
+  try {
+    const { data } = await axios.get(`${API}/api/session/${sessionId}/cart`)
+    // Show only this device's items
+    const myItems = data.filter(item => 
+      item.addedBy === deviceId || 
+      item.addedBy === 'You' ||
+      !item.addedBy
+    )
+    set({ cart: myItems })
+  } catch (e) {
+    console.error('fetchCart error:', e)
+  }
+},
 }))

@@ -17,32 +17,108 @@ const QUICK_BUTTONS = [
   { label: '👨‍🍳 Chef Special', message: 'what is the chef special today' },
 ]
 
-function SuggestionImage({ itemId, fallback }) {
-  const { menu } = useStore()
-  const [error, setError] = useState(false)
-
-  const menuItem = menu?.find(m => m.id === itemId)
+// Suggestion card with image + qty controls
+function SuggestionCard({ s, session, sessionId, addToCart, setCartOpen }) {
+  const { cart, updateQty, menu } = useStore()
+  const [imgError, setImgError] = useState(false)
+ 
+  const sid = session?.id || sessionId
+  const cartItem = cart.find(c => c.menuItemId === (s.itemId || s.id))
+  const menuItem = menu.find(m => m.id === (s.itemId || s.id))
   const imageUrl = menuItem?.imageUrl
-
-  if (imageUrl && !error) {
-    return (
-      <img
-        src={imageUrl}
-        alt=""
-        onError={() => setError(true)}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-        }}
-      />
-    )
+ 
+  function handleAdd() {
+    if (!sid) return
+    addToCart(sid, s.itemId || s.id, s.name, s.price)
+    setCartOpen(true)
+    setTimeout(() => setCartOpen(false), 1200)
   }
-
+ 
   return (
-    <span style={{ fontSize: '22px' }}>
-      {fallback}
-    </span>
+    <div style={{
+      background: 'var(--bg-card2)',
+      border: '1px solid rgba(255,107,157,0.2)',
+      borderRadius: '14px', padding: '12px',
+      display: 'flex', alignItems: 'center', gap: '10px',
+    }}>
+      {/* Food image */}
+      <div style={{
+        width: '52px', height: '52px',
+        borderRadius: '10px', overflow: 'hidden',
+        flexShrink: 0,
+        background: 'linear-gradient(135deg, rgba(255,107,157,0.2), rgba(255,107,53,0.15))',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {imageUrl && !imgError ? (
+          <img
+            src={imageUrl}
+            alt={s.name}
+            onError={() => setImgError(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <span style={{ fontSize: '22px' }}>🍽️</span>
+        )}
+      </div>
+ 
+      {/* Info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+        }}>{s.name}</p>
+        {s.reason && (
+          <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
+            {s.reason}
+          </p>
+        )}
+        <p style={{
+          background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text', fontWeight: 700, fontSize: '13px', marginTop: '2px'
+        }}>₹{s.price}</p>
+      </div>
+ 
+      {/* Add / Qty control */}
+      {cartItem ? (
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+          borderRadius: '20px', overflow: 'hidden', flexShrink: 0,
+        }}>
+          <button
+            onClick={() => updateQty(sid, cartItem.id, cartItem.quantity - 1)}
+            style={{
+              width: '30px', height: '30px', background: 'transparent',
+              border: 'none', color: '#fff', fontSize: '16px',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>−</button>
+          <span style={{
+            color: '#fff', fontWeight: 800, fontSize: '13px',
+            minWidth: '18px', textAlign: 'center'
+          }}>{cartItem.quantity}</span>
+          <button
+            onClick={() => updateQty(sid, cartItem.id, cartItem.quantity + 1)}
+            style={{
+              width: '30px', height: '30px', background: 'transparent',
+              border: 'none', color: '#fff', fontSize: '16px',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>+</button>
+        </div>
+      ) : (
+        <button
+          onClick={handleAdd}
+          style={{
+            background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
+            border: 'none', color: '#fff',
+            fontSize: '12px', fontWeight: 700,
+            padding: '7px 12px', borderRadius: '20px',
+            cursor: 'pointer', flexShrink: 0,
+            fontFamily: 'var(--font-body)',
+          }}
+        >+ Add</button>
+      )}
+    </div>
   )
 }
 
@@ -317,68 +393,17 @@ export default function AIChat({ sessionId }) {
                     </div>
 
                     {/* Suggestions Section */}
-                    {msg.suggestions?.length > 0 && (
+                     {msg.suggestions?.length > 0 && (
                       <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {msg.suggestions.map((s, j) => (
-                          <div key={j} style={{
-                            background: 'var(--bg-card2)',
-                            border: '1px solid rgba(255,107,157,0.2)',
-                            borderRadius: '14px',
-                            padding: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            animation: `slideUp 0.4s ${j * 0.1}s both`
-                          }}>
-                            <div style={{
-                              width: '52px', height: '52px',
-                              borderRadius: '10px',
-                              background: 'linear-gradient(135deg, rgba(255,107,157,0.2), rgba(255,107,53,0.15))',
-                              overflow: 'hidden',
-                              flexShrink: 0,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              <SuggestionImage itemId={s.itemId || s.id} fallback="🍽️" />
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{
-                                color: 'var(--text-primary)',
-                                fontSize: '13px', fontWeight: 600,
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                              }}>{s.name}</p>
-                              {s.reason && (
-                                <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
-                                  {s.reason}
-                                </p>
-                              )}
-                              <p style={{
-                                background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                backgroundClip: 'text',
-                                fontWeight: 700, fontSize: '13px', marginTop: '2px'
-                              }}>₹{s.price}</p>
-                            </div>
-                            <button
-                              onClick={() => {
-                                const sid = session?.id || sessionId
-                                if (!sid) return
-                                addToCart(sid, s.itemId || s.id, s.name, s.price)
-                                setCartOpen(true)
-                                setTimeout(() => setCartOpen(false), 1200)
-                              }}
-                              className="btn-press"
-                              style={{
-                                background: 'linear-gradient(135deg, #ff6b9d, #ff6b35)',
-                                border: 'none', color: '#fff',
-                                fontSize: '12px', fontWeight: 700,
-                                padding: '7px 12px', borderRadius: '20px',
-                                cursor: 'pointer', flexShrink: 0,
-                                fontFamily: 'var(--font-body)',
-                                boxShadow: '0 4px 12px rgba(255,107,157,0.3)'
-                              }}
-                            >+ Add</button>
-                          </div>
+                          <SuggestionCard
+                            key={j}
+                            s={s}
+                            session={session}
+                            sessionId={sessionId}
+                            addToCart={addToCart}
+                            setCartOpen={setCartOpen}
+                          />
                         ))}
                       </div>
                     )}

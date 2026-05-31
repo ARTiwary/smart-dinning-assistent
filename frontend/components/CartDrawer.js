@@ -9,6 +9,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 export default function CartDrawer() {
   const {
     cart,
+    menu, // Added menu lookup from useStore
     cartOpen,
     setCartOpen,
     session,
@@ -28,6 +29,9 @@ export default function CartDrawer() {
   const [errors, setErrors] = useState({})
   const [cancelling, setCancelling] = useState(false)
   
+  // Local state to keep track of any images that fail to load
+  const [failedImages, setFailedImages] = useState({})
+  
   useEffect(() => {
     if (session?.id) fetchCart(session.id)
   }, [session])
@@ -42,63 +46,63 @@ export default function CartDrawer() {
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0)
 
   async function sendOtp() {
-  const e = {}
-  if (!name.trim() || name.trim().length < 2) e.name = 'Enter a valid name'
-  if (!/^[6-9]\d{9}$/.test(phone)) e.phone = 'Enter valid 10-digit mobile number'
-  setErrors(e)
-  if (Object.keys(e).length > 0) return
-  setLoading(true)
-  await axios.post(`${API}/api/otp/send`, { phone })
-  setOtpSent(true)
-  setLoading(false)
-}
+    const e = {}
+    if (!name.trim() || name.trim().length < 2) e.name = 'Enter a valid name'
+    if (!/^[6-9]\d{9}$/.test(phone)) e.phone = 'Enter valid 10-digit mobile number'
+    setErrors(e)
+    if (Object.keys(e).length > 0) return
+    setLoading(true)
+    await axios.post(`${API}/api/otp/send`, { phone })
+    setOtpSent(true)
+    setLoading(false)
+  }
 
- async function placeOrder() {
-  if (otp.length !== 6) { setErrors({ otp: 'OTP must be 6 digits' }); return }
-  setLoading(true)
-  try {
-    const { data: v } = await axios.post(`${API}/api/otp/verify`, { phone, otp })
-    if (!v.valid) { setErrors({ otp: 'Invalid OTP. Try again.' }); setLoading(false); return }
-    const { data: order } = await axios.post(`${API}/api/session/${session.id}/order`, {
-      customerName: name, customerPhone: phone
-    })
-    setOrderPlaced(order)
-    setCheckoutOpen(false)
-    setCartOpen(false)
-    setName(''); setPhone(''); setOtp(''); setOtpSent(false); setErrors({})
-    // Clear cart from store and backend
-    useStore.getState().setCart([])
-  } catch (e) {
-    setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
+  async function placeOrder() {
+    if (otp.length !== 6) { setErrors({ otp: 'OTP must be 6 digits' }); return }
+    setLoading(true)
+    try {
+      const { data: v } = await axios.post(`${API}/api/otp/verify`, { phone, otp })
+      if (!v.valid) { setErrors({ otp: 'Invalid OTP. Try again.' }); setLoading(false); return }
+      const { data: order } = await axios.post(`${API}/api/session/${session.id}/order`, {
+        customerName: name, customerPhone: phone
+      })
+      setOrderPlaced(order)
+      setCheckoutOpen(false)
+      setCartOpen(false)
+      setName(''); setPhone(''); setOtp(''); setOtpSent(false); setErrors({})
+      useStore.getState().setCart([])
+    } catch (e) {
+      setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
+    }
+    setLoading(false)
   }
-  setLoading(false)
-}
-async function cancelOrder(orderId) {
-  if (!confirm('Are you sure you want to cancel your order?')) return
-  setCancelling(true)
-  try {
-    await axios.patch(`${API}/api/order/${orderId}/cancel`)
-    setOrderPlaced(null)
-    alert('Order cancelled successfully.')
-  } catch (e) {
-    alert('Could not cancel — order may already be preparing.')
+
+  async function cancelOrder(orderId) {
+    if (!confirm('Are you sure you want to cancel your order?')) return
+    setCancelling(true)
+    try {
+      await axios.patch(`${API}/api/order/${orderId}/cancel`)
+      setOrderPlaced(null)
+      alert('Order cancelled successfully.')
+    } catch (e) {
+      alert('Could not cancel — order may already be preparing.')
+    }
+    setCancelling(false)
   }
-  setCancelling(false)
-}
 
   const inputStyle = (hasError) => ({
-  width: '100%',
-  background: 'rgba(255,255,255,0.04)',
-  border: `1px solid ${hasError ? '#ff6b6b' : 'rgba(255,107,53,0.2)'}`,
-  borderRadius: '12px',
-  padding: '13px 16px',
-  color: '#fff5f0',
-  fontSize: '14px',
-  fontFamily: 'var(--font-body)',
-  outline: 'none',
-  marginBottom: hasError ? '6px' : '12px',
-  boxSizing: 'border-box',
-})
+    width: '100%',
+    background: 'rgba(255,255,255,0.04)',
+    border: `1px solid ${hasError ? '#ff6b6b' : 'rgba(255,107,53,0.2)'}`,
+    borderRadius: '12px',
+    padding: '13px 16px',
+    color: '#fff5f0',
+    fontSize: '14px',
+    fontFamily: 'var(--font-body)',
+    outline: 'none',
+    marginBottom: hasError ? '6px' : '12px',
+    boxSizing: 'border-box',
+  })
 
   return (
     <>
@@ -166,7 +170,7 @@ async function cancelOrder(orderId) {
 
       {/* Drawer */}
       <div
-      className="cart-drawer"
+        className="cart-drawer"
         style={{
           position: 'fixed',
           top: 0,
@@ -266,21 +270,11 @@ async function cancelOrder(orderId) {
             >
               <span style={{ fontSize: '48px' }}>🍽️</span>
 
-              <p
-                style={{
-                  color: '#7a5f58',
-                  fontSize: '14px',
-                }}
-              >
+              <p style={{ color: '#7a5f58', fontSize: '14px' }}>
                 Your cart is empty
               </p>
 
-              <p
-                style={{
-                  color: '#7a5f58',
-                  fontSize: '12px',
-                }}
-              >
+              <p style={{ color: '#7a5f58', fontSize: '12px' }}>
                 Add some delicious items!
               </p>
             </div>
@@ -292,176 +286,169 @@ async function cancelOrder(orderId) {
                 gap: '10px',
               }}
             >
-              {cart.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    background: '#1a1220',
-                    border:
-                      '1px solid rgba(255,107,53,0.12)',
-                    borderRadius: '16px',
-                    padding: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                  }}
-                >
+              {cart.map((item) => {
+                // Cross-reference menu items from store to get the imageUrl
+                const matchedMenu = menu.find(m => m.id === item.menuItemId);
+                const imageUrl = matchedMenu?.imageUrl;
+                const hasImageError = failedImages[item.id];
+
+                return (
                   <div
+                    key={item.id}
                     style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '12px',
-                      background:
-                        'linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,107,157,0.1))',
+                      background: '#1a1220',
+                      border: '1px solid rgba(255,107,53,0.12)',
+                      borderRadius: '16px',
+                      padding: '12px',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '22px',
-                      flexShrink: 0,
-                    }}
-                  >
-                    🍽️
-                  </div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p
-                      style={{
-                        color: '#fff5f0',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {item.menuItem?.name}
-                    </p>
-
-                    <p
-                      style={{
-                        color: '#7a5f58',
-                        fontSize: '11px',
-                        marginTop: '2px',
-                      }}
-                    >
-                      by {item.addedBy}
-                    </p>
-
-                    <p
-                      style={{
-                        background:
-                          'linear-gradient(135deg, #ff6b35, #ff6b9d)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        fontSize: '14px',
-                        fontWeight: 700,
-                        marginTop: '4px',
-                      }}
-                    >
-                      ₹
-                      {(
-                        Number(item.menuItem?.price) *
-                        item.quantity
-                      ).toFixed(0)}
-                    </p>
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '6px',
+                      gap: '12px',
                     }}
                   >
                     <div
                       style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,107,157,0.1))',
                         display: 'flex',
                         alignItems: 'center',
-                        background:
-                          'linear-gradient(135deg, #ff6b35, #ff6b9d)',
-                        borderRadius: '20px',
-                        overflow: 'hidden',
+                        justifyContent: 'center',
+                        fontSize: '22px',
+                        flexShrink: 0,
+                        overflow: 'hidden', // Ensures images don't clip outside rounded borders
                       }}
                     >
-                      <button
-                        onClick={() =>
-                          updateQty(
-                            session?.id,
-                            item.id,
-                            item.quantity - 1
-                          )
-                        }
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#fff',
-                          fontSize: '16px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        −
-                      </button>
-
-                      <span
-                        style={{
-                          color: '#fff',
-                          fontWeight: 800,
-                          fontSize: '13px',
-                          minWidth: '16px',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {item.quantity}
-                      </span>
-
-                      <button
-                        onClick={() =>
-                          updateQty(
-                            session?.id,
-                            item.id,
-                            item.quantity + 1
-                          )
-                        }
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#fff',
-                          fontSize: '16px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        +
-                      </button>
+                      {imageUrl && !hasImageError ? (
+                        <img
+                          src={imageUrl}
+                          alt={item.menuItem?.name || 'Food image'}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                          onError={() => {
+                            setFailedImages(prev => ({ ...prev, [item.id]: true }))
+                          }}
+                        />
+                      ) : (
+                        '🍽️'
+                      )}
                     </div>
 
-                    <button
-                      onClick={() =>
-                        removeFromCart(session?.id, item.id)
-                      }
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
+                        style={{
+                          color: '#fff5f0',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {item.menuItem?.name}
+                      </p>
+
+                      <p style={{ color: '#7a5f58', fontSize: '11px', marginTop: '2px' }}>
+                        by {item.addedBy}
+                      </p>
+
+                      <p
+                        style={{
+                          background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                          fontSize: '14px',
+                          fontWeight: 700,
+                          marginTop: '4px',
+                        }}
+                      >
+                        ₹{(Number(item.menuItem?.price) * item.quantity).toFixed(0)}
+                      </p>
+                    </div>
+
+                    <div
                       style={{
-                        background:
-                          'rgba(255,100,100,0.1)',
-                        border:
-                          '1px solid rgba(255,100,100,0.2)',
-                        borderRadius: '8px',
-                        color: '#ff6b6b',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        padding: '3px 8px',
-                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '6px',
                       }}
                     >
-                      🗑 Remove
-                    </button>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                          borderRadius: '20px',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <button
+                          onClick={() => updateQty(session?.id, item.id, item.quantity - 1)}
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#fff',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          −
+                        </button>
+
+                        <span
+                          style={{
+                            color: '#fff',
+                            fontWeight: 800,
+                            fontSize: '13px',
+                            minWidth: '16px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {item.quantity}
+                        </span>
+
+                        <button
+                          onClick={() => updateQty(session?.id, item.id, item.quantity + 1)}
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#fff',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => removeFromCart(session?.id, item.id)}
+                        style={{
+                          background: 'rgba(255,100,100,0.1)',
+                          border: '1px solid rgba(255,100,100,0.2)',
+                          borderRadius: '8px',
+                          color: '#ff6b6b',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          padding: '3px 8px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        🗑 Remove
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -471,10 +458,8 @@ async function cancelOrder(orderId) {
           <div
             style={{
               padding: '20px',
-              borderTop:
-                '1px solid rgba(255,107,53,0.12)',
-              background:
-                'linear-gradient(0deg, rgba(255,107,53,0.05), transparent)',
+              borderTop: '1px solid rgba(255,107,53,0.12)',
+              background: 'linear-gradient(0deg, rgba(255,107,53,0.05), transparent)',
               flexShrink: 0,
             }}
           >
@@ -510,24 +495,16 @@ async function cancelOrder(orderId) {
                 justifyContent: 'space-between',
                 marginTop: '8px',
                 paddingTop: '8px',
-                borderTop:
-                  '1px solid rgba(255,107,53,0.12)',
+                borderTop: '1px solid rgba(255,107,53,0.12)',
               }}
             >
-              <span
-                style={{
-                  color: '#fff5f0',
-                  fontWeight: 700,
-                  fontSize: '16px',
-                }}
-              >
+              <span style={{ color: '#fff5f0', fontWeight: 700, fontSize: '16px' }}>
                 Total
               </span>
 
               <span
                 style={{
-                  background:
-                    'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                  background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
@@ -544,8 +521,7 @@ async function cancelOrder(orderId) {
               style={{
                 width: '100%',
                 marginTop: '16px',
-                background:
-                  'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
                 border: 'none',
                 color: '#fff',
                 padding: '16px',
@@ -553,8 +529,7 @@ async function cancelOrder(orderId) {
                 fontSize: '16px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow:
-                  '0 6px 25px rgba(255,107,53,0.4)',
+                boxShadow: '0 6px 25px rgba(255,107,53,0.4)',
               }}
             >
               Place Order 🎉
@@ -564,285 +539,244 @@ async function cancelOrder(orderId) {
       </div>
 
       {/* Checkout Modal */}
-{checkoutOpen && (
-  <div
-    style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-
-      zIndex: 99999,
-
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      background: 'rgba(0,0,0,0.75)',
-      backdropFilter: 'blur(8px)',
-
-      padding: '16px',
-
-      overflow: 'hidden',
-    }}
-  >
-    <div
-      style={{
-        width: '100%',
-        maxWidth: '380px',
-
-        background:
-          'linear-gradient(145deg, #1a1220, #201628)',
-
-        border:
-          '1px solid rgba(255,107,53,0.25)',
-
-        borderRadius: '24px',
-
-        padding: '24px',
-
-        boxShadow:
-          '0 20px 80px rgba(0,0,0,0.55)',
-
-        position: 'relative',
-
-        maxHeight: '90vh',
-        overflowY: 'auto',
-
-        animation: 'popupScale 0.25s ease',
-      }}
-    >
-      <h3
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '24px',
-          fontWeight: 700,
-          color: '#fff5f0',
-          marginBottom: '8px',
-          textAlign: 'center',
-        }}
-      >
-        Complete Order 🎉
-      </h3>
-
-      <p
-        style={{
-          color: '#7a5f58',
-          fontSize: '13px',
-          marginBottom: '20px',
-          textAlign: 'center',
-        }}
-      >
-        Total:{' '}
-        <span
+      {checkoutOpen && (
+        <div
           style={{
-            color: '#ff8c69',
-            fontWeight: 700,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(8px)',
+            padding: '16px',
+            overflow: 'hidden',
           }}
         >
-          ₹{total.toFixed(0)}
-        </span>
-      </p>
-      {errors.general && (
-  <div style={{
-    background: 'rgba(255,100,100,0.1)',
-    border: '1px solid rgba(255,100,100,0.3)',
-    borderRadius: '10px',
-    padding: '10px 14px',
-    marginBottom: '12px',
-    color: '#ff6b6b',
-    fontSize: '13px'
-  }}>
-    ⚠ {errors.general}
-  </div>
-)}
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '380px',
+              background: 'linear-gradient(145deg, #1a1220, #201628)',
+              border: '1px solid rgba(255,107,53,0.25)',
+              borderRadius: '24px',
+              padding: '24px',
+              boxShadow: '0 20px 80px rgba(0,0,0,0.55)',
+              position: 'relative',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              animation: 'popupScale 0.25s ease',
+            }}
+          >
+            <h3
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '24px',
+                fontWeight: 700,
+                color: '#fff5f0',
+                marginBottom: '8px',
+                textAlign: 'center',
+              }}
+            >
+              Complete Order 🎉
+            </h3>
 
-      <input
-        type="text"
-        placeholder="Your name"
-        value={name}
-        onChange={(e) => {
-          setName(e.target.value)
-          setErrors(p => ({ ...p, name: '' }))
-          }}
-        style={inputStyle(!!errors.name)}
-      />
-      {errors.name && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.name}</p>}
+            <p
+              style={{
+                color: '#7a5f58',
+                fontSize: '13px',
+                marginBottom: '20px',
+                textAlign: 'center',
+              }}
+            >
+              Total:{' '}
+              <span style={{ color: '#ff8c69', fontWeight: 700 }}>
+                ₹{total.toFixed(0)}
+              </span>
+            </p>
+            {errors.general && (
+              <div style={{
+                background: 'rgba(255,100,100,0.1)',
+                border: '1px solid rgba(255,100,100,0.3)',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                marginBottom: '12px',
+                color: '#ff6b6b',
+                fontSize: '13px'
+              }}>
+                ⚠ {errors.general}
+              </div>
+            )}
 
-      <input
-        type="tel"
-        placeholder="Phone number"
-        value={phone}
-        onChange={(e) => {
-          setPhone(e.target.value)
-          setErrors(p => ({ ...p, phone: '' }))
-          }}
-        style={inputStyle(!!errors.phone)}
-      />
-      {errors.phone && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.phone}</p>}
+            <input
+              type="text"
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                setErrors(p => ({ ...p, name: '' }))
+              }}
+              style={inputStyle(!!errors.name)}
+            />
+            {errors.name && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.name}</p>}
 
-      {otpSent && (
-        <input
-          type="text"
-          placeholder="Enter OTP"
-          value={otp}
-          onChange={(e) => {
-            setOtp(e.target.value)
-             setErrors(p => ({ ...p, otp: '' }))
-             }}
-          style={{ ...inputStyle(!!errors.otp), letterSpacing: '0.2em' }}
-        />
+            <input
+              type="tel"
+              placeholder="Phone number"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                setErrors(p => ({ ...p, phone: '' }))
+              }}
+              style={inputStyle(!!errors.phone)}
+            />
+            {errors.phone && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.phone}</p>}
+
+            {otpSent && (
+              <input
+                type="text"
+                placeholder="Enter OTP"
+                value={otp}
+                onChange={(e) => {
+                  setOtp(e.target.value)
+                  setErrors(p => ({ ...p, otp: '' }))
+                }}
+                style={{ ...inputStyle(!!errors.otp), letterSpacing: '0.2em' }}
+              />
+            )}
+            {errors.otp && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.otp}</p>}
+
+            <button
+              onClick={otpSent ? placeOrder : sendOtp}
+              disabled={
+                loading ||
+                !phone ||
+                !name ||
+                (otpSent && !otp)
+              }
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                border: 'none',
+                color: '#fff',
+                padding: '15px',
+                borderRadius: '14px',
+                fontSize: '15px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                opacity: loading || !phone || !name ? 0.6 : 1,
+                boxShadow: '0 6px 20px rgba(255,107,53,0.35)',
+                marginBottom: '10px',
+              }}
+            >
+              {loading
+                ? '...'
+                : otpSent
+                ? '✓ Confirm Order'
+                : 'Send OTP →'}
+            </button>
+
+            <button
+              onClick={() => {
+                setCheckoutOpen(false)
+                setOtpSent(false)
+                setOtp('')
+              }}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: '#7a5f58',
+                padding: '10px',
+                cursor: 'pointer',
+                fontSize: '13px',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
-      {errors.otp && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.otp}</p>}
 
-      <button
-        onClick={otpSent ? placeOrder : sendOtp}
-        disabled={
-          loading ||
-          !phone ||
-          !name ||
-          (otpSent && !otp)
-        }
-        style={{
-          width: '100%',
-          background:
-            'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+      {orderPlaced && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.92)',
+            backdropFilter: 'blur(16px)',
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(145deg, #1a1220, #201628)',
+              border: '1px solid rgba(74,222,128,0.2)',
+              borderRadius: '28px',
+              width: '100%',
+              maxWidth: '360px',
+              padding: '36px 28px',
+              textAlign: 'center',
+              boxShadow: '0 20px 80px rgba(0,0,0,0.55)',
+              transform: 'translateY(0)',
+            }}
+          >
+            <div style={{ fontSize: '64px', marginBottom: '12px' }}>🎉</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 700, color: '#fff5f0', marginBottom: '6px' }}>Order Placed!</h3>
+            <p style={{ color: '#7a5f58', fontSize: '12px', marginBottom: '6px' }}>#{orderPlaced.id?.slice(0, 8).toUpperCase()}</p>
+            <p style={{ background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '30px', fontWeight: 800, marginBottom: '16px' }}>
+              ₹{Number(orderPlaced.totalAmount).toFixed(0)}
+            </p>
+            <p style={{ color: '#7a5f58', fontSize: '13px', marginBottom: '14px' }}>
+              ⏱️ Estimated wait: <span style={{ color: '#ffd166', fontWeight: 600 }}>15–20 mins</span>
+            </p>
+            <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.1), rgba(255,107,157,0.08))', border: '1px solid rgba(255,107,157,0.2)', borderRadius: '14px', padding: '14px', marginBottom: '20px' }}>
+              <p style={{ color: '#ffb3c6', fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>
+                🙏 Thank you, {orderPlaced.customerName?.split(' ')[0]}!
+              </p>
+              <p style={{ color: '#7a5f58', fontSize: '12px', lineHeight: 1.6 }}>
+                Your food is being prepared with love. Want to explore more while you wait?
+              </p>
+            </div>
+            <button onClick={() => setOrderPlaced(null)} style={{
+              width: '100%', marginBottom: '10px',
+              background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+              border: 'none', color: '#fff', padding: '15px', borderRadius: '14px',
+              fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+            }}>🍽️ Explore More Menu</button>
+            {orderPlaced.status === 'pending' && (
+              <button
+                onClick={() => cancelOrder(orderPlaced.id)}
+                disabled={cancelling}
+                style={{
+                  width: '100%', marginBottom: '10px',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,100,100,0.3)',
+                  color: '#ff6b6b', padding: '12px', borderRadius: '14px',
+                  fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >{cancelling ? 'Cancelling...' : '✕ Cancel Order'}</button>
+            )}
+            <button onClick={() => setOrderPlaced(null)} style={{
+              width: '100%', background: 'transparent', border: 'none',
+              color: '#7a5f58', padding: '8px', cursor: 'pointer', fontSize: '13px',
+            }}>Close</button>
 
-          border: 'none',
-          color: '#fff',
-
-          padding: '15px',
-
-          borderRadius: '14px',
-
-          fontSize: '15px',
-          fontWeight: 700,
-
-          cursor: 'pointer',
-
-          opacity:
-            loading || !phone || !name ? 0.6 : 1,
-
-          boxShadow:
-            '0 6px 20px rgba(255,107,53,0.35)',
-
-          marginBottom: '10px',
-        }}
-      >
-        {loading
-          ? '...'
-          : otpSent
-          ? '✓ Confirm Order'
-          : 'Send OTP →'}
-      </button>
-
-      <button
-        onClick={() => {
-          setCheckoutOpen(false)
-          setOtpSent(false)
-          setOtp('')
-        }}
-        style={{
-          width: '100%',
-          background: 'transparent',
-          border: 'none',
-          color: '#7a5f58',
-          padding: '10px',
-          cursor: 'pointer',
-          fontSize: '13px',
-        }}
-      >
-        Cancel
-      </button>
-    </div>
-  </div>
-)}
-
-
-{orderPlaced && (
-   <div
-    style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-
-      zIndex: 99999,
-
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      background: 'rgba(0,0,0,0.92)',
-      backdropFilter: 'blur(16px)',
-
-      padding: '16px',
-      boxSizing: 'border-box',
-    }}
-  >
-    <div
-      style={{
-        background: 'linear-gradient(145deg, #1a1220, #201628)',
-        border: '1px solid rgba(74,222,128,0.2)',
-        borderRadius: '28px',
-
-        width: '100%',
-        maxWidth: '360px',
-
-        padding: '36px 28px',
-        textAlign: 'center',
-
-        boxShadow: '0 20px 80px rgba(0,0,0,0.55)',
-
-        transform: 'translateY(0)',
-      }}
-    >
-      <div style={{ fontSize: '64px', marginBottom: '12px' }}>🎉</div>
-      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 700, color: '#fff5f0', marginBottom: '6px' }}>Order Placed!</h3>
-      <p style={{ color: '#7a5f58', fontSize: '12px', marginBottom: '6px' }}>#{orderPlaced.id?.slice(0, 8).toUpperCase()}</p>
-      <p style={{ background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '30px', fontWeight: 800, marginBottom: '16px' }}>
-        ₹{Number(orderPlaced.totalAmount).toFixed(0)}
-      </p>
-      <p style={{ color: '#7a5f58', fontSize: '13px', marginBottom: '14px' }}>
-        ⏱️ Estimated wait: <span style={{ color: '#ffd166', fontWeight: 600 }}>15–20 mins</span>
-      </p>
-      <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.1), rgba(255,107,157,0.08))', border: '1px solid rgba(255,107,157,0.2)', borderRadius: '14px', padding: '14px', marginBottom: '20px' }}>
-        <p style={{ color: '#ffb3c6', fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>
-          🙏 Thank you, {orderPlaced.customerName?.split(' ')[0]}!
-        </p>
-        <p style={{ color: '#7a5f58', fontSize: '12px', lineHeight: 1.6 }}>
-          Your food is being prepared with love. Want to explore more while you wait?
-        </p>
-      </div>
-      <button onClick={() => setOrderPlaced(null)} style={{
-        width: '100%', marginBottom: '10px',
-        background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
-        border: 'none', color: '#fff', padding: '15px', borderRadius: '14px',
-        fontSize: '15px', fontWeight: 700, cursor: 'pointer',
-      }}>🍽️ Explore More Menu</button>
-      {orderPlaced.status === 'pending' && (
-  <button
-    onClick={() => cancelOrder(orderPlaced.id)}
-    disabled={cancelling}
-    style={{
-      width: '100%', marginBottom: '10px',
-      background: 'transparent',
-      border: '1px solid rgba(255,100,100,0.3)',
-      color: '#ff6b6b', padding: '12px', borderRadius: '14px',
-      fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-    }}
-  >{cancelling ? 'Cancelling...' : '✕ Cancel Order'}</button>
-)}
-      <button onClick={() => setOrderPlaced(null)} style={{
-        width: '100%', background: 'transparent', border: 'none',
-        color: '#7a5f58', padding: '8px', cursor: 'pointer', fontSize: '13px',
-      }}>Close</button>
-
-    </div>
-  </div>
-)}
+          </div>
+        </div>
+      )}
     </>
   )
 }
