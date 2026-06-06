@@ -31,7 +31,7 @@ const ayush = {
   name         : "Ayush Raj Tiwary",
   degree       : "B.Tech CSE @ 2023–2027",
   location     : "India 🇮🇳",
-  stack        : ["Next.js", "Node.js", "FastAPI", "PostgreSQL", "ChromaDB", "Groq AI"],
+  stack        : ["Next.js", "Node.js", "FastAPI", "Python", "PostgreSQL", "ChromaDB", "Groq AI"],
   currentFocus : "Shipping full-stack + multi-agent AI systems",
   funFact      : "I bowl more overs than I close PRs 🏏",
   available    : true, // Open for internships & collaborations
@@ -44,56 +44,17 @@ const ayush = {
 
 ### 🍛 Spice Garden — AI-Driven Smart Dining Assistant
 
-> *Not just a menu app — a fully autonomous, multi-agent AI ordering experience.*
+> Scan a QR code → chat with **Zara** (AI assistant) → order food. Zero staff. 8 specialized AI agents, real-time group ordering, multilingual support.
 
 <div align="center">
 
 [![Live Demo](https://img.shields.io/badge/🌐_Customer_App-Live-58a6ff?style=for-the-badge&labelColor=0d1117)](https://smart-dinning-assistent.vercel.app)
 [![Admin Panel](https://img.shields.io/badge/🔐_Admin_Panel-Live-8b949e?style=for-the-badge&labelColor=0d1117)](https://smart-dinning-assistent.vercel.app/admin)
-[![Backend API](https://img.shields.io/badge/⚙️_Backend_API-Render-339933?style=for-the-badge&labelColor=0d1117)](https://smart-dinning-assistent.onrender.com)
 [![GitHub](https://img.shields.io/badge/GitHub-Source-181717?style=for-the-badge&logo=github&logoColor=white&labelColor=0d1117)](https://github.com/ARTiwary/smart-dinning-assistent)
 
 </div>
 
-Customers scan a QR code → chat with **Zara** (AI assistant) → place orders. Zero staff involvement. Powered by **8 specialized AI agents** orchestrated via LangChain.js, with real-time group ordering over WebSocket.
-
-**What makes it stand out:**
-
-| Layer | What was built |
-|---|---|
-| 🤖 **AI** | 8-agent orchestrator: Greeter, Recommender, Upseller, Multilingual NLU, Group Coordinator, Sentiment, Context Memory, Order Validation |
-| 🌐 **Frontend** | Next.js 16 + TailwindCSS + Zustand — mobile-first, optimistic UI |
-| ⚙️ **Backend** | Node.js + Express + Socket.io — real-time group cart sync |
-| 🗄️ **Data** | PostgreSQL (Supabase) + Prisma ORM + ChromaDB vector store |
-| ⚡ **AI Infra** | Groq API (llama-3.1-8b-instant) in prod · Ollama locally · LangChain.js orchestration |
-| 🔴 **Realtime** | Redis (Upstash) for session cache + pub/sub + group ordering |
-| 🌍 **Multilingual** | Hinglish + Telugu-English NLU → structured intent |
-| 💸 **Cost** | Entire production stack: **$0/month** (Vercel + Render + Supabase + Upstash + Groq free tiers) |
-
-<details>
-<summary><b>🤖 See Agent Architecture</b></summary>
-
-```
-User Input
-    │
-    ▼
-Multilingual NLU Agent  ←  normalise & detect language/intent
-    │
-    ▼
-Orchestrator (custom LangChain router)
-    ├── Greeter Agent          (first message)
-    ├── Context Memory Agent   (always — read/write Redis session)
-    ├── Recommendation Agent   (intent = browse/ask)
-    ├── Upsell Agent           (post add-to-cart trigger)
-    ├── Group Coordinator      (multi-user WebSocket events)
-    ├── Sentiment Agent        (background tone monitor)
-    └── Order Validation Agent (pre-checkout stock check)
-    │
-    ▼
-Formatted Response → Next.js Frontend
-```
-
-</details>
+`Next.js` `Node.js` `PostgreSQL` `ChromaDB` `Groq AI` `LangChain.js` `Redis` `Socket.io`
 
 ---
 
@@ -146,7 +107,6 @@ ML-powered MRI brain tumor detection with real-time hand gesture control — bui
 ### 🧪 Languages
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![C](https://img.shields.io/badge/C-00599C?style=for-the-badge&logo=c&logoColor=white)
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
 
