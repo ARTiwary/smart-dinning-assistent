@@ -3,13 +3,13 @@ import { OpenAIEmbeddings } from '@langchain/openai'
 
 export const llm = new ChatGroq({
   apiKey: process.env.GROQ_API_KEY,
-  model: 'llama-3.1-8b-instant',
+  model: 'openai/gpt-oss-20b',
   temperature: 0.7,
 })
 
 export const fastLlm = new ChatGroq({
   apiKey: process.env.GROQ_API_KEY,
-  model: 'llama-3.1-8b-instant',
+  model: 'openai/gpt-oss-20b',
   temperature: 0.2,
 })
 
