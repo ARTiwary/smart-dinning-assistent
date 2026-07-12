@@ -1,67 +1,104 @@
+import { CohereClient } from 'cohere-ai'
 import { prisma } from '../db/prisma.js'
 
-let menuCache = null
+const cohere = new CohereClient({ token: process.env.COHERE_API_KEY })
 
-export async function getVectorStore() {
-  return null
+// Get embedding for a text
+async function embed(text) {
+  const response = await cohere.embed({
+    texts: [text],
+    model: 'embed-english-light-v3.0',
+    inputType: 'search_query',
+  })
+  return response.embeddings[0]
+}
+
+// Get embeddings for multiple texts
+async function embedBatch(texts) {
+  const response = await cohere.embed({
+    texts,
+    model: 'embed-english-light-v3.0',
+    inputType: 'search_document',
+  })
+  return response.embeddings
+}
+
+// Cosine similarity between two vectors
+function cosineSimilarity(a, b) {
+  const dot = a.reduce((sum, val, i) => sum + val * b[i], 0)
+  const magA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0))
+  const magB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0))
+  return dot / (magA * magB)
 }
 
 export async function initMenuEmbeddings() {
-  console.log('📦 Loading menu items...')
-  menuCache = await prisma.menuItem.findMany({ where: { available: true } })
-  console.log(`✅ Loaded ${menuCache.length} menu items`)
-  return menuCache
+  console.log('📦 Generating menu embeddings with Cohere...')
+  const items = await prisma.menuItem.findMany({ where: { available: true } })
+
+  // Check which items already have embeddings
+  const needsEmbedding = items.filter(item => !item.embedding)
+
+  if (needsEmbedding.length === 0) {
+    console.log('✅ All menu items already embedded')
+    return
+  }
+
+  // Build text for each item
+  const texts = needsEmbedding.map(item =>
+    `${item.name}. ${item.description}. Category: ${item.category}. Tags: ${item.tags.join(', ')}. Price: ₹${item.price}.`
+  )
+
+  // Get embeddings in batch
+  const embeddings = await embedBatch(texts)
+
+  // Save embeddings to PostgreSQL via raw SQL (pgvector)
+  for (let i = 0; i < needsEmbedding.length; i++) {
+    const item = needsEmbedding[i]
+    const embedding = embeddings[i]
+    const vectorStr = `[${embedding.join(',')}]`
+
+    await prisma.$executeRaw`
+      UPDATE "MenuItem" 
+      SET embedding = ${vectorStr}::vector 
+      WHERE id = ${item.id}
+    `
+  }
+
+  console.log(`✅ Embedded ${needsEmbedding.length} menu items into pgvector`)
 }
 
 export async function searchMenuItems(query, limit = 10) {
-  if (!menuCache) {
-    menuCache = await prisma.menuItem.findMany({ where: { available: true } })
-  }
+  // Embed the query
+  const queryEmbedding = await embed(query)
+  const vectorStr = `[${queryEmbedding.join(',')}]`
 
-  const q = query.toLowerCase()
-  const keywords = q.split(' ').filter(w => w.length > 2)
+  // pgvector cosine similarity search
+  const results = await prisma.$queryRaw`
+    SELECT 
+      id, name, category, price, description, 
+      tags, allergens, "popularScore",
+      1 - (embedding <=> ${vectorStr}::vector) as similarity
+    FROM "MenuItem"
+    WHERE available = true
+    AND embedding IS NOT NULL
+    ORDER BY embedding <=> ${vectorStr}::vector
+    LIMIT ${limit}
+  `
 
-  const scored = menuCache.map(item => {
-    let score = 0
-    const text = `${item.name} ${item.description} ${item.tags.join(' ')} ${item.category}`.toLowerCase()
-
-    keywords.forEach(kw => {
-      if (text.includes(kw)) score += 2
-    })
-
-    if (q.includes('spicy') && item.tags.includes('spicy')) score += 3
-    if (q.includes('light') && item.tags.includes('light')) score += 3
-    if (q.includes('veg') && item.tags.includes('veg')) score += 3
-    if ((q.includes('sweet') || q.includes('dessert')) && item.category.includes('Desserts')) score += 4
-    if (q.includes('drink') || q.includes('beverage')) {
-      if (item.category.includes('Beverages')) score += 4
+  return results.map(item => ({
+    pageContent: `${item.name}. ${item.description}. Tags: ${item.tags.join(', ')}`,
+    metadata: {
+      id: item.id,
+      name: item.name,
+      price: Number(item.price),
+      category: item.category,
+      tags: item.tags.join(','),
+      allergens: item.allergens.join(','),
+      similarity: item.similarity,
     }
-    if (q.includes('best') || q.includes('popular')) score += item.popularScore * 3
-    if (q.includes('non-veg') || q.includes('chicken') || q.includes('mutton')) {
-      if (!item.tags.includes('veg')) score += 3
-    }
-    if (q.includes('fill') || q.includes('heavy')) {
-      if (item.tags.includes('filling')) score += 3
-    }
+  }))
+}
 
-    score += item.popularScore
-
-    return { item, score }
-  })
-
-  return scored
-    .filter(s => s.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(s => ({
-      pageContent: `${s.item.name}. ${s.item.description}. Tags: ${s.item.tags.join(', ')}`,
-      metadata: {
-        id: s.item.id,
-        name: s.item.name,
-        price: Number(s.item.price),
-        category: s.item.category,
-        tags: s.item.tags.join(','),
-        allergens: s.item.allergens.join(','),
-      }
-    }))
+export async function getVectorStore() {
+  return { similaritySearch: searchMenuItems }
 }

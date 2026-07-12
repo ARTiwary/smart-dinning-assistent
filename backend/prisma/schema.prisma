@@ -9,20 +9,20 @@ datasource db {
 }
 
 model MenuItem {
-  id                String      @id @default(uuid())
-  name              String
-  category          String
-  price             Decimal     @db.Decimal(10, 2)
-  description       String?
-  imageUrl          String?
-  tags              String[]
-  allergens         String[]
-  available         Boolean     @default(true)
-  popularScore      Float       @default(0)
-  complementaryIds  String[]
-  cartItems         CartItem[]
-  orderItems        OrderItem[]
-  createdAt         DateTime    @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  category    String
+  price       Decimal  @db.Decimal(10, 2)
+  description String?
+  imageUrl    String?
+  tags        String[]
+  allergens   String[]
+  available   Boolean  @default(true)
+  popularScore Float   @default(0)
+  embedding   Unsupported("vector(384)")?  // ← add this
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  createdAt   DateTime @default(now())
 }
 
 model Session {
