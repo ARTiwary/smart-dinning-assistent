@@ -1,11 +1,12 @@
 # 🍛 Spice Garden — AI-Driven Smart Dining Assistant
 
-> A production-grade, full-stack AI-first restaurant ordering system built with a multi-agent architecture, real-time group ordering, multilingual support, and a live admin dashboard.
+> A production-grade, full-stack AI-first restaurant ordering system with a multi-agent architecture, real RAG using pgvector + Cohere embeddings, real-time group ordering, multilingual support, and a live admin dashboard.
 
 ![Node](https://img.shields.io/badge/Node.js-20+-green?style=flat-square&logo=node.js)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
 ![LangChain](https://img.shields.io/badge/LangChain-JS-blue?style=flat-square)
 ![Groq](https://img.shields.io/badge/LLM-Groq%20llama3.1-orange?style=flat-square)
+![RAG](https://img.shields.io/badge/RAG-pgvector%20%2B%20Cohere-purple?style=flat-square)
 ![Deploy](https://img.shields.io/badge/Deployed-Vercel%20%2B%20Render-brightgreen?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 
@@ -26,38 +27,43 @@
 
 ## 🎯 What Makes This AI-First?
 
-This is not a menu app with a chatbot widget bolted on. Every customer touchpoint is owned by a dedicated AI agent:
+This is not a menu app with a chatbot bolted on. AI agents are first-class citizens that own every customer touchpoint:
 
-- **AI is the primary interaction layer** — natural language is the default input
+- **Natural language is the default input** — menus are the fallback
 - **8 specialized agents** coordinate through a central orchestrator
-- **Agents share memory and context** — the system learns within a session
-- **Multilingual by default** — English, Hinglish, Telugu-English all work natively
-- **Upselling is contextual and intelligent** — not hardcoded banners
+- **Real RAG** — Cohere embeddings + pgvector cosine similarity search
+- **Agents share memory** — preferences persist throughout the session
+- **Multilingual by default** — English, Hinglish, Telugu-English natively
+- **Contextual upselling** — not hardcoded banners, triggered by cart state
 
 ---
 
 ## ✨ Features
 
 ### 👤 Customer Side
-- 📱 QR code scan → instant anonymous table session
-- 🤖 **Zara** — AI dining assistant (Groq llama3.1-8b-instant)
-- 🧠 8-agent orchestrator with LangChain routing
-- 🌶️ Smart recommendations via semantic keyword search
-- 🗣️ Multilingual NLU — Hinglish, Telugu-English, typos handled
+- 📱 QR code scan → instant anonymous table session (no login)
+- 🤖 **Zara** — AI dining assistant powered by Groq llama-3.1-8b-instant
+- 🧠 8-agent multi-agent orchestrator with LangChain routing
+- 🔍 Real RAG — Cohere embeddings + pgvector semantic search
+- 🌶️ Smart recommendations grounded in actual menu data
+- 🗣️ Multilingual NLU — Hinglish, Telugu-English, typos all handled
 - 👥 Real-time group ordering via Socket.io + Redis pub/sub
-- 🛒 Per-device cart with optimistic UI updates
-- 📲 OTP verification at checkout (Redis TTL, 3-attempt lockout)
-- 🧾 Full bill with GST breakdown
-- 📱 Fully mobile responsive — works on all screen sizes
+- 🛒 Per-device cart with optimistic UI — instant feel
+- 📲 OTP verification (Redis TTL, 3-attempt lockout)
+- 🧾 Full bill breakdown with GST (5%)
+- ✕ Cancel order option for customer
+- 📱 Fully responsive — all screen sizes from 320px to 1440px+
 
 ### 🔐 Admin Panel
-- 📊 Live dashboard — orders, revenue, active tables
-- 🧾 Order management: Pending → Confirmed → Preparing → Ready → Delivered
-- ✕ Cancel orders (admin and customer both can cancel)
+- 📊 Live dashboard — today's orders, revenue, active orders
+- 🧾 Order management with full status flow
+  - Pending → Confirmed → Preparing → Ready → Delivered
+- ✕ Cancel orders (admin + customer both)
 - 🪑 Dynamic table management — add/remove tables
 - 📱 QR code generation per table with download
 - 🔒 Close/reset table sessions
 - 🔄 Auto-refresh every 10 seconds
+- 🔐 Password protected login
 
 ---
 
@@ -67,31 +73,41 @@ This is not a menu app with a chatbot widget bolted on. Every customer touchpoin
 User Phone (Browser)
         │ HTTPS / WebSocket
         ▼
-┌─────────────────────────────────┐
-│   Next.js 16 Frontend           │
-│   Vercel · TailwindCSS · Zustand│
-└──────────────┬──────────────────┘
-               │ REST API + Socket.io
+┌─────────────────────────────────────┐
+│   Next.js 16 Frontend (Vercel)      │
+│   TailwindCSS · Zustand · Axios     │
+│   Socket.io Client                  │
+└──────────────┬──────────────────────┘
+               │ REST API + WebSocket
                ▼
-┌─────────────────────────────────┐
-│   Express Backend               │
-│   Render · Node.js 20           │
-│                                 │
-│  ┌─────────────────────────┐    │
-│  │  AI Orchestrator        │    │
-│  │  LangChain + Groq       │    │
-│  │  8 Specialized Agents   │    │
-│  └─────────────────────────┘    │
-└──────┬───────────┬──────────────┘
-       │           │
-       ▼           ▼
-┌──────────┐  ┌──────────┐
-│PostgreSQL│  │  Redis   │
-│ Supabase │  │ Upstash  │
-│ Prisma   │  │ Sessions │
-│ Orders   │  │ OTP      │
-│ Menu     │  │ Pub/Sub  │
-└──────────┘  └──────────┘
+┌─────────────────────────────────────┐
+│   Express Backend (Render)          │
+│   Node.js 20 · Socket.io Server     │
+│                                     │
+│  ┌───────────────────────────────┐  │
+│  │    AI Orchestrator            │  │
+│  │    LangChain.js + Groq        │  │
+│  │    8 Specialized Agents       │  │
+│  │    Real RAG Pipeline          │  │
+│  └───────────────────────────────┘  │
+└────────┬──────────────┬─────────────┘
+         │              │
+         ▼              ▼
+┌──────────────┐  ┌───────────────┐
+│  PostgreSQL  │  │    Redis      │
+│  Supabase    │  │    Upstash    │
+│  + pgvector  │  │  Sessions    │
+│  Prisma ORM  │  │  OTP + TTL   │
+│  Menu, Orders│  │  Pub/Sub     │
+└──────────────┘  └───────────────┘
+         │
+         ▼
+┌──────────────┐
+│   Cohere API │
+│  Embeddings  │
+│  384-dim     │
+│  vectors     │
+└──────────────┘
 ```
 
 ---
@@ -102,17 +118,20 @@ User Phone (Browser)
 User Input
     │
     ▼
-Multilingual NLU Agent ──► normalize & detect language + intent
-    │
+Multilingual NLU Agent
+    │ {intent, preferences, language, groupSize}
     ▼
 Orchestrator (intent router)
     ├── GREET      ──► Greeter Agent
-    ├── RECOMMEND  ──► Recommendation Agent + Context Memory
-    ├── ADD_ITEM   ──► add_to_cart() tool
-    ├── UPSELL     ──► Upsell Agent (async, non-blocking)
+    ├── RECOMMEND  ──► Recommendation Agent
+    │                  └── Cohere embed query
+    │                  └── pgvector cosine search
+    │                  └── Groq LLM ranking
+    ├── UPSELL     ──► Upsell Agent (async)
+    ├── MEMORY     ──► Context Memory Agent (Redis)
     ├── GROUP      ──► Group Coordinator Agent
-    ├── CHECKOUT   ──► Order Validation Agent
-    └── FALLBACK   ──► General LLM with menu context
+    ├── SENTIMENT  ──► Sentiment Agent (background)
+    └── CHECKOUT   ──► Order Validation Agent
     │
     ▼
 JSON Response → Frontend renders suggestion cards
@@ -120,16 +139,39 @@ JSON Response → Frontend renders suggestion cards
 
 ### Agent Responsibilities
 
-| Agent | Responsibility |
-|---|---|
-| **Multilingual NLU** | Normalizes Hinglish/Telugu-English → structured `{intent, preferences, language}` JSON |
-| **Greeter** | First message welcome, mood detection, session context setup |
-| **Recommendation** | Keyword search + LLM ranking → top 3 menu suggestions with reasons |
-| **Upsell** | Monitors cart — triggers "missing drinks?", combo threshold, evening specials |
-| **Context Memory** | Redis-backed preference store — "no dairy" honored throughout session |
-| **Group Coordinator** | Detects "we/our/4 people" → adjusts to shareable item suggestions |
-| **Sentiment** | Detects frustration → adds empathetic prefix to response |
-| **Order Validation** | Pre-checkout stock check and quantity validation |
+| Agent | Responsibility | Tools |
+|---|---|---|
+| **Multilingual NLU** | Normalizes Hinglish/Telugu → structured JSON intent | Groq |
+| **Greeter** | First message welcome, mood detection | Groq |
+| **Recommendation** | Cohere embed → pgvector search → LLM rank → top 3 | Cohere + pgvector + Groq |
+| **Upsell** | Cart monitoring — missing drinks, combo threshold, evening specials | Prisma + Groq |
+| **Context Memory** | Redis preference store — honors "no dairy" throughout session | Redis |
+| **Group Coordinator** | Detects group size → adjusts to shareable suggestions | Groq |
+| **Sentiment** | Detects frustration → adds empathetic prefix | Groq |
+| **Order Validation** | Pre-checkout stock + quantity validation | Prisma |
+
+---
+
+## 🔍 Real RAG Pipeline
+
+```
+INDEXING (run once at startup):
+Menu Items → Cohere embed-english-light-v3.0 → 384-dim vectors → pgvector
+
+RETRIEVAL (every user message):
+User Query → Cohere embed → 384-dim vector
+           → pgvector cosine similarity (<=> operator)
+           → top 10 most semantically similar items
+
+GENERATION:
+Top 10 items + user preferences + cart state → Groq LLM prompt
+LLM selects best 3 with personalized reasons → JSON response
+```
+
+**Why this beats keyword search:**
+- "Something tangy and bold" → finds **Prawn Pepper Fry** even though those words don't appear in the description
+- "Meetha chahiye" → finds **Gulab Jamun** via semantic meaning, not word match
+- Allergen filters applied after retrieval — safe items only
 
 ---
 
@@ -137,16 +179,17 @@ JSON Response → Frontend renders suggestion cards
 
 | Layer | Technology | Why |
 |---|---|---|
-| **Frontend** | Next.js 16, TailwindCSS, Zustand | SSR, file-based routing, lightweight state |
-| **Backend** | Node.js, Express | Fast, large ecosystem |
+| **Frontend** | Next.js 16, TailwindCSS, Zustand | SSR, file routing, lightweight state |
+| **Backend** | Node.js 20, Express | Fast, large ecosystem |
 | **Real-time** | Socket.io + Redis pub/sub | Push updates, no polling |
-| **Database** | PostgreSQL + Prisma | Relational data, type-safe queries |
-| **Cache** | Redis (Upstash) | 0.1ms session reads, OTP TTL |
-| **LLM (prod)** | Groq llama-3.1-8b-instant | Free, sub-second inference |
-| **LLM (local)** | Ollama llama3.2 | Free, offline, same LangChain interface |
-| **AI Framework** | LangChain.js | LLM abstraction, swap providers in 1 line |
-| **Vector Search** | Keyword scoring (prod), ChromaDB (local) | No external API dependency on free tier |
-| **Deployment** | Vercel + Render + Supabase + Upstash | $0 total cost |
+| **Database** | PostgreSQL + Prisma + pgvector | Relational data + vector search in one DB |
+| **Cache** | Redis (Upstash) | 0.1ms sessions, OTP TTL, pub/sub |
+| **LLM** | Groq llama-3.1-8b-instant | Free, sub-second inference |
+| **Embeddings** | Cohere embed-english-light-v3.0 | Free tier, 384-dim, accurate |
+| **Vector Search** | pgvector (Supabase extension) | No separate vector DB needed |
+| **AI Framework** | LangChain.js | LLM abstraction, swap providers easily |
+| **Local Dev LLM** | Ollama llama3.2 | Free, offline |
+| **Deployment** | Vercel + Render + Supabase + Upstash | $0/month total |
 
 ---
 
@@ -154,32 +197,46 @@ JSON Response → Frontend renders suggestion cards
 
 ```
 MenuItem ──< CartItem >── Session ──< Order ──< OrderItem >── MenuItem
-                              │
-                         preferences (JSONB)
-                         conversationSummary
+              (deviceId)      │
+                         preferences
+                         (JSONB)
 ```
 
-- **Session** — one table visit, 4hr TTL, stores user preferences
-- **CartItem** — per device, links session + menu item + addedBy
-- **Order** — placed order with customer details and total
-- **OrderItem** — snapshot of items at order time with locked prices
+**MenuItem** — 35 items, 9 categories, tags, allergens, popularScore, **384-dim embedding vector**
+
+**Session** — one table visit, 4hr TTL, JSONB preferences, per-tableId
+
+**CartItem** — per device (deviceId), links session + menuItem, quantity, specialInstructions
+
+**Order** — placed order, customer name + phone, totalAmount, taxAmount, status
+
+**OrderItem** — snapshot of items at order time with locked prices
 
 ---
 
 ## 🔄 Complete User Flow
 
 ```
-1. Scan QR → /table/T1
-2. Session created in PostgreSQL, cached in Redis
-3. Menu loaded (35 items across 9 categories)
-4. Zara greets user (Greeter Agent)
-5. User chats → Multilingual NLU normalizes → Orchestrator routes
-6. Recommendation Agent: keyword search → LLM ranking → suggestion cards
-7. User adds item → optimistic UI update → PostgreSQL → Socket.io broadcast
-8. Upsell Agent fires → "Missing drinks?" suggestion
-9. Checkout → OTP sent → Redis TTL → verified → Order Validation Agent
-10. Order saved → Socket.io notifies admin dashboard
-11. Admin marks status: Pending → Confirmed → Preparing → Ready → Delivered
+1.  Scan QR → /table/T1
+2.  Session created in PostgreSQL, cached in Redis (4hr TTL)
+3.  Menu loaded with images (Unsplash URLs)
+4.  Cohere embeddings initialized for menu items in pgvector
+5.  Zara greets user (Greeter Agent)
+6.  User types/selects quick button
+7.  Multilingual NLU normalizes → Orchestrator routes
+8.  Recommendation Agent:
+    → Cohere embeds user query
+    → pgvector cosine similarity search
+    → Top 10 semantically similar items
+    → Groq LLM picks best 3 with reasons
+    → Suggestion cards rendered with images + Add buttons
+9.  User adds item → optimistic UI → PostgreSQL → Socket.io broadcast
+10. Upsell Agent fires → contextual suggestion
+11. Context Memory saves preferences to Redis
+12. Checkout → OTP sent → Redis TTL 5min → verified
+13. Order Validation Agent checks stock
+14. Order saved → Socket.io notifies admin dashboard
+15. Admin: Pending → Confirmed → Preparing → Ready → Delivered
 ```
 
 ---
@@ -189,7 +246,7 @@ MenuItem ──< CartItem >── Session ──< Order ──< OrderItem >─�
 ### Prerequisites
 - Node.js 20+
 - Docker Desktop
-- Python 3.11+ (ChromaDB)
+- Python 3.11+ (ChromaDB for local dev)
 - [Ollama](https://ollama.ai)
 
 ### 1. Clone
@@ -202,7 +259,6 @@ cd smart-dinning-assistent
 ### 2. Infrastructure
 
 ```bash
-# PostgreSQL + Redis
 docker run --name smart-dining-postgres \
   -e POSTGRES_PASSWORD=password \
   -e POSTGRES_DB=smart_dining \
@@ -210,7 +266,6 @@ docker run --name smart-dining-postgres \
 
 docker run --name smart-dining-redis -p 6379:6379 -d redis
 
-# Auto restart on reboot
 docker update --restart always smart-dining-postgres
 docker update --restart always smart-dining-redis
 ```
@@ -227,7 +282,7 @@ pip install chromadb
 
 ```bash
 cd backend
-cp .env.example .env   # fill in values
+cp .env.example .env
 npm install
 npm run db:migrate
 npm run db:seed
@@ -243,30 +298,30 @@ npm install
 ### 6. Run
 
 ```bash
-# Terminal 1
+# Terminal 1 — ChromaDB (local dev)
 chroma run --host localhost --port 8000
 
-# Terminal 2
+# Terminal 2 — Ollama
 ollama serve
 
-# Terminal 3
+# Terminal 3 — Backend
 cd backend && npm run dev
 
-# Terminal 4
+# Terminal 4 — Frontend
 cd frontend && npm run dev
 ```
 
-Or use one-click startup (Windows):
+**Windows one-click:**
 ```bash
 .\start.bat
 ```
 
 ### 7. Open
 
-| URL | Description |
+| URL | |
 |---|---|
 | http://localhost:3000/table/T1 | Customer app |
-| http://localhost:3000/admin | Admin panel (password: admin123) |
+| http://localhost:3000/admin | Admin (password: admin123) |
 
 ---
 
@@ -275,19 +330,31 @@ Or use one-click startup (Windows):
 ### `backend/.env`
 
 ```env
+# Database
 DATABASE_URL=postgresql://postgres:password@localhost:5432/smart_dining
+DIRECT_URL=postgresql://postgres:password@localhost:5432/smart_dining
+
+# Cache
 REDIS_URL=redis://localhost:6379
+
+# Server
 PORT=4000
-GROQ_API_KEY=your_groq_key
-HF_API_KEY=your_huggingface_key
+NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+ADMIN_KEY=admin123
+
+# AI — Local
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
 OLLAMA_EMBED_MODEL=nomic-embed-text
 CHROMA_URL=http://localhost:8000
+
+# AI — Production
+GROQ_API_KEY=your_groq_key
+COHERE_API_KEY=your_cohere_key
+
+# OTP
 OTP_MODE=mock
-FRONTEND_URL=http://localhost:3000
-ADMIN_KEY=admin123
-NODE_ENV=development
 ```
 
 ### `frontend/.env.local`
@@ -307,7 +374,7 @@ smart-dinning-assistent/
 │   ├── src/
 │   │   ├── agents/
 │   │   │   ├── greeterAgent.js
-│   │   │   ├── recommendationAgent.js
+│   │   │   ├── recommendationAgent.js   ← RAG pipeline
 │   │   │   ├── upsellAgent.js
 │   │   │   ├── contextMemoryAgent.js
 │   │   │   ├── groupCoordinatorAgent.js
@@ -315,7 +382,7 @@ smart-dinning-assistent/
 │   │   │   ├── multilingualAgent.js
 │   │   │   └── orderValidationAgent.js
 │   │   ├── orchestrator/
-│   │   │   └── index.js          ← intent router
+│   │   │   └── index.js                 ← intent router
 │   │   ├── routes/
 │   │   │   ├── menu.js
 │   │   │   ├── session.js
@@ -331,28 +398,28 @@ smart-dinning-assistent/
 │   │   │   ├── otpService.js
 │   │   │   └── orderService.js
 │   │   ├── lib/
-│   │   │   ├── ollama.js          ← Groq + embeddings
-│   │   │   ├── chroma.js          ← keyword/vector search
+│   │   │   ├── ollama.js                ← Groq + Cohere
+│   │   │   ├── chroma.js                ← pgvector RAG
 │   │   │   ├── redis.js
 │   │   │   └── socket.js
 │   │   ├── db/prisma.js
 │   │   └── index.js
 │   └── prisma/
-│       ├── schema.prisma
-│       └── seed.js               ← 35 menu items + images
+│       ├── schema.prisma                ← pgvector extension
+│       └── seed.js                      ← 35 items + images
 ├── frontend/
 │   ├── app/
-│   │   ├── table/[tableId]/page.js
-│   │   ├── admin/page.js
+│   │   ├── table/[tableId]/page.js      ← customer page
+│   │   ├── admin/page.js                ← admin dashboard
 │   │   ├── layout.js
-│   │   └── globals.css            ← full responsive system
+│   │   └── globals.css                  ← full responsive CSS
 │   ├── components/
-│   │   ├── MenuGrid.js
-│   │   ├── CartDrawer.js
-│   │   ├── AIChat.js
-│   │   └── GroupBanner.js
-│   └── lib/store.js               ← Zustand global state
-└── start.bat                      ← one-click Windows startup
+│   │   ├── MenuGrid.js                  ← categories + filters
+│   │   ├── CartDrawer.js                ← cart + OTP + bill
+│   │   ├── AIChat.js                    ← Zara interface
+│   │   └── GroupBanner.js               ← group ordering
+│   └── lib/store.js                     ← Zustand state
+└── start.bat                            ← Windows one-click
 ```
 
 ---
@@ -361,11 +428,11 @@ smart-dinning-assistent/
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/menu` | Full menu |
-| GET | `/api/menu/search?q=` | Search menu |
+| GET | `/api/menu` | Full menu with images |
+| GET | `/api/menu/search?q=` | Text search |
 | GET | `/api/table/:tableId/session` | Get or create session |
-| GET | `/api/session/:id/cart` | Get cart |
-| POST | `/api/session/:id/cart` | Add to cart |
+| GET | `/api/session/:id/cart` | Get cart items |
+| POST | `/api/session/:id/cart` | Add item |
 | PATCH | `/api/session/:id/cart/:itemId` | Update quantity |
 | DELETE | `/api/session/:id/cart/:itemId` | Remove item |
 | POST | `/api/session/:id/ai/chat` | Chat with Zara |
@@ -375,88 +442,109 @@ smart-dinning-assistent/
 | PATCH | `/api/order/:id/cancel` | Cancel order (user) |
 | GET | `/api/admin/orders` | All orders |
 | GET | `/api/admin/stats` | Dashboard stats |
+| GET | `/api/admin/tables` | Active sessions |
 | PATCH | `/api/admin/orders/:id/status` | Update status |
-| PATCH | `/api/admin/orders/:id/cancel` | Cancel order (admin) |
+| PATCH | `/api/admin/orders/:id/cancel` | Cancel (admin) |
 | PATCH | `/api/admin/sessions/:id/close` | Close table |
 
 ---
 
 ## 💡 Key Design Decisions
 
-**Ollama locally → Groq in production**
-Both use identical LangChain interface. Swapping is one env variable change. Groq gives free sub-second inference without GPU.
+**Real RAG with pgvector instead of ChromaDB**
+pgvector is a PostgreSQL extension — no separate vector database server needed. Embeddings stored alongside menu data in the same Supabase instance. Cohere's free embedding API works from Render (unlike HuggingFace which is blocked on free tier).
 
-**Keyword search instead of vector embeddings in production**
-Render free tier blocks outbound HTTP to HuggingFace/OpenAI embedding APIs. Keyword scoring with popularity weighting achieves accurate results with zero external dependencies. Swaps back to ChromaDB with one file change.
+**Groq instead of OpenAI**
+Same LangChain interface — one env variable change to swap. Free tier gives sub-second llama3.1-8b-instant responses. No billing setup required for demo/internship purposes.
 
 **Multi-agent over single monolithic prompt**
-Each agent has its own token budget and responsibility. Cheaper, faster, easier to debug. Adding a new capability means adding one agent file, not modifying a giant prompt.
+Each agent has its own token budget and responsibility. Cheaper, faster, easier to debug. Adding a new capability = adding one agent file without touching existing agents.
 
 **Redis for sessions over PostgreSQL**
-PostgreSQL reads take 5-50ms. Redis reads take 0.1ms. Cart updates must feel instant. Redis pub/sub also enables WebSocket broadcasting without a dedicated message broker.
+PostgreSQL reads take 5-50ms. Redis reads take 0.1ms. Cart updates must feel instant. Redis pub/sub also handles WebSocket broadcasting without a dedicated message broker.
 
 **Per-device cart isolation**
-Each phone at a table gets its own deviceId stored in localStorage. Cart items filtered by deviceId so two people at same table see only their own items while group banner shows everyone present.
+Each phone gets a unique deviceId in localStorage. Cart items filtered by deviceId so two people at the same table see only their own items. Group banner still shows everyone present via Socket.io join events.
+
+**Optimistic UI for cart**
+Cart updates instantly on screen before API confirms. If API fails, cart reverts to server state via fetchCart. Makes the app feel snappy on slow connections.
 
 ---
 
 ## ⚠️ Trade-offs & Future Work
 
 ### Cut for time
-- Real SMS OTP (using mock 123456 for demo)
+- Real Twilio SMS OTP (using mock 123456)
 - Kitchen display WebSocket screen
-- PDF bill/receipt generation
+- PDF bill generation
 - Cross-session memory via phone number
+- Voice input for Zara
 
 ### Would add next
-- [ ] Twilio SMS OTP
-- [ ] pgvector embeddings on Supabase
 - [ ] Kitchen display real-time screen
-- [ ] PDF receipt generation
-- [ ] Analytics — revenue charts, peak hours, popular items
+- [ ] Order tracking live status for customer
+- [ ] Twilio SMS OTP
+- [ ] PDF receipt download
+- [ ] Analytics dashboard (revenue, peak hours, popular items)
+- [ ] Menu management in admin (add/edit/delete items)
+- [ ] Voice input via Web Speech API
+- [ ] Smart combo builder AI feature
+- [ ] Loyalty points system
 - [ ] Multi-restaurant support
-- [ ] React Native mobile app
 
 ---
 
-## 💰 Total Deployment Cost
+## 💰 Total Cost
 
 | Service | Provider | Cost |
 |---|---|---|
 | Frontend | Vercel | Free |
 | Backend | Render | Free |
-| PostgreSQL | Supabase | Free |
+| PostgreSQL + pgvector | Supabase | Free |
 | Redis | Upstash | Free |
 | LLM | Groq API | Free |
+| Embeddings | Cohere API | Free |
 | **Total** | | **$0/month** |
 
 ---
 
 ## 🎯 Example AI Interactions
 
-**Hinglish input:**
+**Hinglish with allergen:**
 ```
-User: kuch spicy chahiye, dairy se allergy hai
-Zara: Bilkul! Yeh lo — spicy bhi, dairy-free bhi!
-→ Chilli Chicken Bites ₹220
-→ Mushroom 65 ₹200
-→ Prawn Pepper Fry ₹280
+User:  kuch spicy chahiye, dairy se allergy hai
+Zara:  Bilkul! Yeh lo — spicy bhi, dairy-free bhi!
+       → Chilli Chicken Bites ₹220
+       → Mushroom 65 ₹200
+       → Prawn Pepper Fry ₹280
+```
+
+**Semantic RAG in action:**
+```
+User:  something tangy and bold
+Zara:  For bold flavours, try these —
+       → Prawn Pepper Fry ₹280 (bold black pepper)
+       → Veg Kolhapuri ₹240 (fiery and tangy)
+       → Mutton Rogan Josh ₹380 (bold Kashmiri spices)
+
+Why: "tangy bold" semantically similar to item
+descriptions even with no word overlap
 ```
 
 **Group ordering:**
 ```
-User: we are 4 people, mix veg and non-veg
-Zara: Perfect for a group! Here's a crowd-pleasing mix —
-→ Paneer Tikka ₹220 (veg)
-→ Starter Platter Non-Veg ₹560
-→ Veg Thali ₹350
+User:  we are 4 people, mix veg and non-veg
+Zara:  Perfect for a group! Here's a crowd-pleasing mix —
+       → Starter Platter Veg ₹480 (shareable)
+       → Starter Platter Non-Veg ₹560 (shareable)
+       → Veg Thali ₹350
 ```
 
 **Upsell trigger:**
 ```
-User adds Butter Chicken to cart
-Zara: Great choice! Looks like you're missing drinks —
-      Mango Lassi pairs perfectly. Want to add it?
+User adds Butter Chicken (mains, no beverage in cart)
+Zara:  Looks like you're missing drinks!
+       Mango Lassi pairs perfectly — want to add it?
 ```
 
 ---
@@ -469,8 +557,8 @@ MIT — free to use, modify, and distribute.
 
 ## 🙏 Built With
 
-[Groq](https://groq.com) · [LangChain.js](https://js.langchain.com) · [Next.js](https://nextjs.org) · [Prisma](https://prisma.io) · [Supabase](https://supabase.com) · [Upstash](https://upstash.com) · [Socket.io](https://socket.io) · [Vercel](https://vercel.com) · [Render](https://render.com)
+[Groq](https://groq.com) · [Cohere](https://cohere.com) · [LangChain.js](https://js.langchain.com) · [Next.js](https://nextjs.org) · [Prisma](https://prisma.io) · [Supabase](https://supabase.com) · [pgvector](https://github.com/pgvector/pgvector) · [Upstash](https://upstash.com) · [Socket.io](https://socket.io) · [Vercel](https://vercel.com) · [Render](https://render.com)
 
 ---
 
-*Built for the AI-Driven Smart Dining Assistant Assignment — Ve-Lyra Labs Gen AI Intern · June 2026*
+*Built for Ve-Lyra Labs — Gen AI Intern Assignment · June 2026*
