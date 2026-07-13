@@ -750,6 +750,15 @@ export default function CartDrawer() {
                 Your food is being prepared with love. Want to explore more while you wait?
               </p>
             </div>
+            <button onClick={() => { window.open(`/track/${orderPlaced.id}`, '_blank') }}
+            style={{
+               width: '100%', marginBottom: '10px',
+               background: 'rgba(255,107,53,0.1)', 
+               border: '1px solid rgba(255,107,53,0.3)',
+               color: '#ff8c69', padding: '12px', borderRadius: '14px',
+               fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+               }}>📍 Track My Order</button>
+
             <button onClick={() => setOrderPlaced(null)} style={{
               width: '100%', marginBottom: '10px',
               background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',

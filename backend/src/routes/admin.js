@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { redis } from '../lib/redis.js';
+import { io } from '../index.js'
 
 const router = Router();
 
@@ -96,4 +97,44 @@ router.patch('/orders/:id/cancel', adminAuth, async (req, res) => {
   }
 })
 
+// Get pending + confirmed + preparing orders for kitchen
+router.get('/kitchen/orders', adminAuth, async (req, res) => {
+  const orders = await prisma.order.findMany({
+    where: { status: { in: ['pending', 'confirmed', 'preparing'] } },
+    include: {
+      orderItems: { include: { menuItem: true } },
+      session: true,
+    },
+    orderBy: { createdAt: 'asc' }
+  })
+  res.json(orders)
+})
+
+// Kitchen marks order ready
+router.patch('/kitchen/orders/:id/ready', adminAuth, async (req, res) => {
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: { status: 'ready' },
+    include: { session: true }
+  })
+  // Notify customer via socket
+  io.to(`table:${order.session.tableId}`).emit('order:ready', {
+    orderId: order.id,
+    message: '🎉 Your order is ready! Please collect it.'
+  })
+  res.json(order)
+})
+router.patch('/orders/:id/status', adminAuth, async (req, res) => {
+  const { status } = req.body
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: { status },
+    include: { session: true }
+  })
+  // Notify customer
+  io.to(`table:${order.session.tableId}`).emit('order:status_update', {
+    orderId: order.id, status
+  })
+  res.json(order)
+})
 export default router;
