@@ -21,19 +21,19 @@ const QUICK_BUTTONS = [
 function SuggestionCard({ s, session, sessionId, addToCart, setCartOpen }) {
   const { cart, updateQty, menu } = useStore()
   const [imgError, setImgError] = useState(false)
- 
+
   const sid = session?.id || sessionId
-  const cartItem = cart.find(c => c.menuItemId === (s.itemId || s.id))
-  const menuItem = menu.find(m => m.id === (s.itemId || s.id))
+  const cartItem = cart?.find(c => c.menuItemId === (s.itemId || s.id))
+  const menuItem = menu?.find(m => m.id === (s.itemId || s.id))
   const imageUrl = menuItem?.imageUrl
- 
+
   function handleAdd() {
     if (!sid) return
     addToCart(sid, s.itemId || s.id, s.name, s.price)
     setCartOpen(true)
     setTimeout(() => setCartOpen(false), 1200)
   }
- 
+
   return (
     <div style={{
       background: 'var(--bg-card2)',
@@ -60,7 +60,7 @@ function SuggestionCard({ s, session, sessionId, addToCart, setCartOpen }) {
           <span style={{ fontSize: '22px' }}>🍽️</span>
         )}
       </div>
- 
+
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
@@ -78,7 +78,7 @@ function SuggestionCard({ s, session, sessionId, addToCart, setCartOpen }) {
           backgroundClip: 'text', fontWeight: 700, fontSize: '13px', marginTop: '2px'
         }}>₹{s.price}</p>
       </div>
- 
+
       {/* Add / Qty control */}
       {cartItem ? (
         <div style={{
@@ -87,12 +87,13 @@ function SuggestionCard({ s, session, sessionId, addToCart, setCartOpen }) {
           borderRadius: '20px', overflow: 'hidden', flexShrink: 0,
         }}>
           <button
-            onClick={() => updateQty(sid, cartItem.id, cartItem.quantity - 1)}
-            style={{
-              width: '30px', height: '30px', background: 'transparent',
-              border: 'none', color: '#fff', fontSize: '16px',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          onClick={() => updateQty(sid, cartItem.id, cartItem.quantity - 1)}
+          style={{
+            width: '30px', height: '30px', background: 'transparent',
+            border: 'none', color: '#fff', fontSize: '16px',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>−</button>
+            
           <span style={{
             color: '#fff', fontWeight: 800, fontSize: '13px',
             minWidth: '18px', textAlign: 'center'
@@ -130,8 +131,12 @@ export default function AIChat({ sessionId }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [unread, setUnread] = useState(false)
+  const [listening, setListening] = useState(false)
+
   const bottomRef = useRef(null)
   const messagesRef = useRef(messages)
+  const recognitionRef = useRef(null)
+
   const { addToCart, session, setCartOpen } = useStore()
 
   useEffect(() => { messagesRef.current = messages }, [messages])
@@ -171,7 +176,7 @@ export default function AIChat({ sessionId }) {
 
       if (data.upsell) {
         setTimeout(() => {
-          const upsellSuggestion = data.upsell.suggestion;
+          const upsellSuggestion = data.upsell.suggestion
           setMessages(prev => [...prev, {
             role: 'assistant',
             text: data.upsell.message,
@@ -190,6 +195,44 @@ export default function AIChat({ sessionId }) {
       }])
     }
     setLoading(false)
+  }
+
+  function startVoice() {
+    if (typeof window === 'undefined') return
+
+    const windowObject = window
+    const SpeechRecognition = windowObject.SpeechRecognition || windowObject.webkitSpeechRecognition
+
+    if (!SpeechRecognition) {
+      alert('Voice input is not supported in this browser. Please try Google Chrome!')
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognitionRef.current = recognition
+
+    recognition.lang = 'en-IN'
+    recognition.continuous = false
+    recognition.interimResults = false
+
+    recognition.onstart = () => setListening(true)
+
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript
+      setInput(transcript)
+      setListening(false)
+      setTimeout(() => sendMessage(transcript), 300)
+    }
+
+    recognition.onerror = () => setListening(false)
+    recognition.onend = () => setListening(false)
+
+    recognition.start()
+  }
+
+  function stopVoice() {
+    recognitionRef.current?.stop()
+    setListening(false)
   }
 
   return (
@@ -393,7 +436,7 @@ export default function AIChat({ sessionId }) {
                     </div>
 
                     {/* Suggestions Section */}
-                     {msg.suggestions?.length > 0 && (
+                    {msg.suggestions?.length > 0 && (
                       <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {msg.suggestions.map((s, j) => (
                           <SuggestionCard
@@ -478,34 +521,58 @@ export default function AIChat({ sessionId }) {
 
           {/* Input Chat Area */}
           <div style={{
-            padding: '12px 16px 20px',
-            display: 'flex', gap: '10px',
+            padding: '12px 16px 20px', flexShrink: 0,
+            display: 'flex', gap: '8px',
             borderTop: '1px solid rgba(255,107,157,0.1)'
           }}>
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !loading && sendMessage()}
-              placeholder="Ask Zara anything... (e.g. kuch spicy chahiye)"
+              placeholder={listening ? '🎤 Listening...' : 'Ask Zara anything... (e.g. kuch spicy chahiye)'}
               style={{
                 flex: 1,
                 background: 'var(--bg-card)',
-                border: '1px solid rgba(255,107,157,0.15)',
+                border: `1px solid ${listening ? 'rgba(255,107,157,0.6)' : 'rgba(255,107,157,0.15)'}`,
                 borderRadius: '16px',
                 padding: '14px 16px',
                 color: 'var(--text-primary)',
                 fontSize: '14px',
                 fontFamily: 'var(--font-body)',
                 outline: 'none',
-                transition: 'border-color 0.2s'
+                transition: 'border-color 0.2s',
+                boxShadow: listening ? '0 0 12px rgba(255,107,157,0.3)' : 'none'
               }}
               onFocus={e => e.target.style.borderColor = 'rgba(255,107,157,0.5)'}
-              onBlur={e => e.target.style.borderColor = 'rgba(255,107,157,0.15)'}
+              onBlur={e => e.target.style.borderColor = listening ? 'rgba(255,107,157,0.6)' : 'rgba(255,107,157,0.15)'}
             />
+
+            {/* Mic button */}
+            <button
+              onClick={listening ? stopVoice : startVoice}
+              type="button"
+              style={{
+                width: '48px', height: '48px',
+                borderRadius: '14px',
+                background: listening
+                  ? 'linear-gradient(135deg, #ff6b6b, #ff4444)'
+                  : 'rgba(255,107,157,0.15)',
+                border: `1px solid ${listening ? 'rgba(255,100,100,0.5)' : 'rgba(255,107,157,0.2)'}`,
+                color: listening ? '#fff' : '#ff6b9d',
+                fontSize: '20px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+                animation: listening ? 'pulse-glow 1s infinite' : 'none',
+                transition: 'all 0.2s'
+              }}
+            >{listening ? '⏹' : '🎤'}</button>
+
+            {/* Send button */}
             <button
               onClick={() => sendMessage()}
               disabled={loading || !input.trim()}
               className="btn-press"
+              type="button"
               style={{
                 width: '48px', height: '48px',
                 borderRadius: '14px',
