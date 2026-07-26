@@ -38,6 +38,8 @@ app.use('/api/otp', otpRoutes);
 app.use('/api/session', aiRoutes);
 app.use('/api/admin', adminRoutes);
 
+app.use('/api/order', orderRoutes);
+
 app.get('/api/popular', async (req, res) => {
   const items = await popularItems(req.query.time);
   res.json(items);

@@ -33,7 +33,6 @@ export default function AdminPanel() {
   const [password, setPassword] = useState('')
   const [selectedOrder, setSelectedOrder] = useState(null)
 
-  // Auth check
   function login() {
     if (password === 'admin123') {
       setAuthed(true)
@@ -67,7 +66,7 @@ export default function AdminPanel() {
   useEffect(() => {
     if (!authed) return
     fetchData()
-    const interval = setInterval(fetchData, 10000) // auto-refresh every 10s
+    const interval = setInterval(fetchData, 10000)
     return () => clearInterval(interval)
   }, [authed, fetchData])
 
@@ -122,10 +121,11 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Navigation Tabs */}
       <div style={{ display: 'flex', gap: '4px', padding: '16px 24px 0', borderBottom: '1px solid rgba(255,107,53,0.1)' }}>
         {[
           { id: 'dashboard', label: '📊 Dashboard' },
+          { id: 'analytics', label: '📈 Analytics' },
           { id: 'orders', label: '🧾 Orders' },
           { id: 'tables', label: '🪑 Tables & QR' },
         ].map(t => (
@@ -140,6 +140,7 @@ export default function AdminPanel() {
         ))}
       </div>
 
+      {/* Content */}
       <div style={{ padding: '24px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px', color: '#7a5f58' }}>
@@ -149,6 +150,7 @@ export default function AdminPanel() {
         ) : (
           <>
             {tab === 'dashboard' && <Dashboard stats={stats} orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
+            {tab === 'analytics' && <Analytics orders={orders} stats={stats} />}
             {tab === 'orders' && <Orders orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
             {tab === 'tables' && <Tables tables={tables} tableCount={tableCount} setTableCount={setTableCount} qrMap={qrMap} onGenerateQR={generateQR} onCloseTable={closeTable} />}
           </>
@@ -159,6 +161,216 @@ export default function AdminPanel() {
       {selectedOrder && (
         <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatusChange={updateStatus} />
       )}
+    </div>
+  )
+}
+
+function Analytics({ orders, stats }) {
+  const revenueByDay = {}
+  orders.forEach(o => {
+    const day = new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+    revenueByDay[day] = (revenueByDay[day] || 0) + Number(o.totalAmount)
+  })
+  const revenueData = Object.entries(revenueByDay).slice(-7)
+  const maxRevenue = Math.max(...revenueData.map(([,v]) => v), 1)
+
+  const itemCount = {}
+  orders.forEach(o => {
+    o.orderItems?.forEach(oi => {
+      const name = oi.menuItem?.name || 'Unknown'
+      itemCount[name] = (itemCount[name] || 0) + oi.quantity
+    })
+  })
+  const topItems = Object.entries(itemCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+  const maxCount = Math.max(...topItems.map(([,v]) => v), 1)
+
+  const statusCount = {}
+  orders.forEach(o => {
+    statusCount[o.status] = (statusCount[o.status] || 0) + 1
+  })
+
+  const catRevenue = {}
+  orders.forEach(o => {
+    o.orderItems?.forEach(oi => {
+      const cat = oi.menuItem?.category || 'Other'
+      catRevenue[cat] = (catRevenue[cat] || 0) + Number(oi.price) * oi.quantity
+    })
+  })
+  const topCats = Object.entries(catRevenue).sort((a, b) => b[1] - a[1]).slice(0, 5)
+
+  const avgOrderValue = orders.length > 0
+    ? orders.reduce((s, o) => s + Number(o.totalAmount), 0) / orders.length
+    : 0
+
+  return (
+    <div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: '12px', marginBottom: '28px'
+      }}>
+        {[
+          { label: 'Total Revenue', value: `₹${Number(stats?.totalRevenue || 0).toFixed(0)}`, icon: '💰', color: '#4ade80' },
+          { label: 'Total Orders', value: stats?.totalOrders || 0, icon: '🧾', color: '#ff6b35' },
+          { label: "Today's Orders", value: stats?.todayOrders || 0, icon: '📦', color: '#ff6b9d' },
+          { label: 'Avg Order Value', value: `₹${avgOrderValue.toFixed(0)}`, icon: '📊', color: '#c44dff' },
+        ].map(kpi => (
+          <div key={kpi.label} style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: `1px solid ${kpi.color}30`,
+            borderRadius: '16px', padding: '18px',
+          }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>{kpi.icon}</div>
+            <p style={{ color: kpi.color, fontSize: '22px', fontWeight: 800, margin: '0 0 4px' }}>
+              {kpi.value}
+            </p>
+            <p style={{ color: '#7a5f58', fontSize: '11px', margin: 0 }}>{kpi.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+        <div style={{
+          background: 'linear-gradient(145deg, #1a1220, #201628)',
+          border: '1px solid rgba(255,107,53,0.15)',
+          borderRadius: '16px', padding: '20px'
+        }}>
+          <h3 style={{ color: '#fff5f0', fontSize: '15px', fontWeight: 700, marginBottom: '20px' }}>
+            📈 Revenue Last 7 Days
+          </h3>
+          {revenueData.length === 0 ? (
+            <p style={{ color: '#7a5f58', textAlign: 'center', padding: '20px' }}>No data yet</p>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '140px' }}>
+              {revenueData.map(([day, revenue]) => (
+                <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                  <p style={{ color: '#ff8c69', fontSize: '9px', fontWeight: 700 }}>
+                    ₹{revenue >= 1000 ? `${(revenue/1000).toFixed(1)}k` : revenue.toFixed(0)}
+                  </p>
+                  <div style={{
+                    width: '100%',
+                    height: `${(revenue / maxRevenue) * 100}px`,
+                    background: 'linear-gradient(180deg, #ff6b9d, #ff6b35)',
+                    borderRadius: '6px 6px 0 0',
+                    minHeight: '4px',
+                    transition: 'height 0.5s ease'
+                  }} />
+                  <p style={{ color: '#7a5f58', fontSize: '9px', textAlign: 'center' }}>{day}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{
+          background: 'linear-gradient(145deg, #1a1220, #201628)',
+          border: '1px solid rgba(255,107,53,0.15)',
+          borderRadius: '16px', padding: '20px'
+        }}>
+          <h3 style={{ color: '#fff5f0', fontSize: '15px', fontWeight: 700, marginBottom: '20px' }}>
+            ⭐ Top Ordered Items
+          </h3>
+          {topItems.length === 0 ? (
+            <p style={{ color: '#7a5f58', textAlign: 'center', padding: '20px' }}>No data yet</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {topItems.map(([name, count], i) => (
+                <div key={name}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: '#c8a49a', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
+                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  '} {name}
+                    </span>
+                    <span style={{ color: '#ff8c69', fontSize: '12px', fontWeight: 700 }}>{count}x</span>
+                  </div>
+                  <div style={{ height: '6px', background: '#2a2a2a', borderRadius: '3px' }}>
+                    <div style={{
+                      height: '100%', borderRadius: '3px',
+                      background: 'linear-gradient(90deg, #ff6b35, #ff6b9d)',
+                      width: `${(count / maxCount) * 100}%`,
+                      transition: 'width 0.5s ease'
+                    }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div style={{
+          background: 'linear-gradient(145deg, #1a1220, #201628)',
+          border: '1px solid rgba(255,107,53,0.15)',
+          borderRadius: '16px', padding: '20px'
+        }}>
+          <h3 style={{ color: '#fff5f0', fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>
+            🧾 Orders by Status
+          </h3>
+          {Object.entries(statusCount).map(([status, count]) => {
+            const colors = {
+              pending: '#ffaa40', confirmed: '#60a5fa',
+              preparing: '#c44dff', ready: '#4ade80',
+              delivered: '#888', cancelled: '#ff6b6b'
+            }
+            return (
+              <div key={status} style={{
+                display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', marginBottom: '10px'
+              }}>
+                <span style={{ color: colors[status] || '#888', fontSize: '13px', fontWeight: 600, textTransform: 'capitalize' }}>
+                  {status}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '80px', height: '6px',
+                    background: '#2a2a2a', borderRadius: '3px'
+                  }}>
+                    <div style={{
+                      height: '100%', borderRadius: '3px',
+                      background: colors[status] || '#888',
+                      width: `${(count / orders.length) * 100}%`
+                    }} />
+                  </div>
+                  <span style={{ color: '#fff5f0', fontSize: '13px', fontWeight: 700, minWidth: '20px' }}>
+                    {count}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <div style={{
+          background: 'linear-gradient(145deg, #1a1220, #201628)',
+          border: '1px solid rgba(255,107,53,0.15)',
+          borderRadius: '16px', padding: '20px'
+        }}>
+          <h3 style={{ color: '#fff5f0', fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>
+            🍽️ Revenue by Category
+          </h3>
+          {topCats.length === 0 ? (
+            <p style={{ color: '#7a5f58', textAlign: 'center', padding: '20px' }}>No data yet</p>
+          ) : topCats.map(([cat, rev]) => (
+            <div key={cat} style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ color: '#c8a49a', fontSize: '11px' }}>{cat}</span>
+                <span style={{ color: '#ff8c69', fontSize: '11px', fontWeight: 700 }}>
+                  ₹{rev.toFixed(0)}
+                </span>
+              </div>
+              <div style={{ height: '5px', background: '#2a2a2a', borderRadius: '3px' }}>
+                <div style={{
+                  height: '100%', borderRadius: '3px',
+                  background: 'linear-gradient(90deg, #c44dff, #ff6b9d)',
+                  width: `${(rev / topCats[0][1]) * 100}%`
+                }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -207,7 +419,6 @@ function Dashboard({ stats, orders, onStatusChange, onSelectOrder }) {
 
   return (
     <div>
-      {/* Stats */}
       <div className="admin-stats-grid"
        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         {[
@@ -228,7 +439,6 @@ function Dashboard({ stats, orders, onStatusChange, onSelectOrder }) {
         ))}
       </div>
 
-      {/* Active orders */}
       <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: '#fff5f0', marginBottom: '16px' }}>
         🔥 Active Orders ({pending.length})
       </h3>
@@ -253,7 +463,6 @@ function Orders({ orders, onStatusChange, onSelectOrder }) {
 
   return (
     <div>
-      {/* Filter tabs */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {['all', 'pending', 'confirmed', 'preparing', 'ready', 'delivered'].map(s => (
           <button key={s} onClick={() => setFilter(s)} style={{
@@ -323,7 +532,6 @@ function OrderCard({ order, onStatusChange, onSelect, compact }) {
         </div>
       </div>
 
-      {/* Items */}
       {!compact && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
           {order.orderItems?.map((oi, i) => (
@@ -335,7 +543,6 @@ function OrderCard({ order, onStatusChange, onSelect, compact }) {
         </div>
       )}
 
-      {/* Status action */}
       {onStatusChange && nextStatus && (
         <button
           onClick={e => { e.stopPropagation(); onStatusChange(order.id, nextStatus) }}
@@ -358,7 +565,6 @@ function Tables({ tables, tableCount, setTableCount, qrMap, onGenerateQR, onClos
 
   return (
     <div>
-      {/* Table count control */}
       <div style={{
         background: 'linear-gradient(145deg, #1a1220, #201628)',
         border: '1px solid rgba(255,107,53,0.15)',
@@ -390,7 +596,6 @@ function Tables({ tables, tableCount, setTableCount, qrMap, onGenerateQR, onClos
         </div>
       </div>
 
-      {/* Table grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
         {tableIds.map(tableId => {
           const session = activeMap[tableId]
@@ -405,7 +610,6 @@ function Tables({ tables, tableCount, setTableCount, qrMap, onGenerateQR, onClos
               borderRadius: '16px', padding: '18px',
               position: 'relative', overflow: 'hidden',
             }}>
-              {/* Status indicator */}
               <div style={{
                 position: 'absolute', top: '12px', right: '12px',
                 width: '10px', height: '10px', borderRadius: '50%',
@@ -420,7 +624,6 @@ function Tables({ tables, tableCount, setTableCount, qrMap, onGenerateQR, onClos
                 {isActive ? (hasOrder ? '🔴 Order placed' : '🟡 Browsing') : '⚪ Available'}
               </p>
 
-              {/* QR Code */}
               {qr ? (
                 <div style={{ textAlign: 'center', marginBottom: '12px' }}>
                   <img src={qr} alt={`QR ${tableId}`} style={{ width: '140px', height: '140px', borderRadius: '8px' }} />
@@ -496,88 +699,38 @@ function OrderModal({ order, onClose, onStatusChange }) {
           </div>
           <span style={{
             background: sc.bg, border: `1px solid ${sc.border}`,
-            color: sc.text, fontSize: '12px', fontWeight: 700,
-            padding: '6px 12px', borderRadius: '12px', height: 'fit-content',
+            color: sc.text, fontSize: '11px', fontWeight: 700,
+            padding: '4px 10px', borderRadius: '10px', height: 'fit-content'
           }}>{order.status.toUpperCase()}</span>
         </div>
 
-        {/* Items */}
-        <div style={{
-          background: 'rgba(255,107,53,0.05)', border: '1px solid rgba(255,107,53,0.1)',
-          borderRadius: '14px', padding: '14px', marginBottom: '16px',
-        }}>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '16px 0', marginBottom: '20px' }}>
           {order.orderItems?.map((oi, i) => (
-            <div key={i} style={{
-              display: 'flex', justifyContent: 'space-between',
-              color: '#c8a49a', fontSize: '14px', marginBottom: '8px',
-            }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#c8a49a', fontSize: '14px' }}>
               <span>{oi.menuItem?.name} × {oi.quantity}</span>
               <span>₹{(Number(oi.price) * oi.quantity).toFixed(0)}</span>
             </div>
           ))}
-          <div style={{ borderTop: '1px solid rgba(255,107,53,0.1)', paddingTop: '8px', marginTop: '4px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7a5f58', fontSize: '12px', marginBottom: '4px' }}>
-              <span>GST (5%)</span><span>₹{Number(order.taxAmount).toFixed(0)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fff5f0', fontWeight: 800, fontSize: '16px' }}>
-              <span>Total</span><span>₹{Number(order.totalAmount).toFixed(0)}</span>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', color: '#fff5f0', fontWeight: 800, fontSize: '16px' }}>
+            <span>Total</span>
+            <span>₹{Number(order.totalAmount).toFixed(0)}</span>
           </div>
         </div>
 
-        {/* Status flow */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px' }}>
-          {STATUS_FLOW.map((s, i) => {
-            const current = STATUS_FLOW.indexOf(order.status)
-            const done = i <= current
-            return (
-              <div key={s} style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{
-                  height: '4px', borderRadius: '2px', marginBottom: '4px',
-                  background: done ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)' : 'rgba(255,255,255,0.08)',
-                }} />
-                <p style={{ color: done ? '#ff8c69' : '#7a5f58', fontSize: '9px', fontWeight: 600 }}>
-                  {s.toUpperCase()}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-
-        {nextStatus && (
-          <button onClick={() => onStatusChange(order.id, nextStatus)} style={{
-            width: '100%',
-            background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
-            border: 'none', color: '#fff', padding: '14px', borderRadius: '14px',
-            fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
-          }}>Mark as {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)} →</button>
+        {onStatusChange && nextStatus && (
+          <button
+            onClick={() => onStatusChange(order.id, nextStatus)}
+            style={{
+              width: '100%',
+              background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+              border: 'none', color: '#fff', padding: '12px',
+              borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'sans-serif',
+            }}
+          >
+            Mark {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)} →
+          </button>
         )}
-       {['pending', 'confirmed'].includes(order.status?.toLowerCase()) && (
-  <button
-    onClick={async () => {
-      if (!confirm('Cancel this order?')) return
-      try {
-        await axios.patch(
-          `${API}/api/admin/orders/${order.id}/cancel`,
-          {},
-          { headers }
-        )
-        onStatusChange(order.id, 'cancelled')
-        onClose()
-      } catch(e) {
-        alert('Could not cancel order')
-      }
-    }}
-    style={{
-      width: '100%', marginTop: '10px',
-      background: 'rgba(255,100,100,0.08)',
-      border: '1px solid rgba(255,100,100,0.3)',
-      color: '#ff6b6b', padding: '14px', borderRadius: '14px',
-      fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-      fontFamily: 'sans-serif',
-    }}
-  >✕ Cancel Order</button>
-)}
       </div>
     </div>
   )

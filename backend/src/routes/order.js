@@ -17,9 +17,9 @@ router.get('/order/:orderId', async (req, res) => {
   const order = await prisma.order.findUnique({
     where: { id: req.params.orderId },
     include: { orderItems: { include: { menuItem: true } } }
-  });
-  res.json(order);
-});
+  })
+  res.json(order)
+})
 
 router.patch('/order/:orderId/cancel', async (req, res) => {
   try {
@@ -33,6 +33,21 @@ router.patch('/order/:orderId/cancel', async (req, res) => {
       data: { status: 'cancelled' }
     })
     res.json(updated)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+router.get('/:orderId', async (req, res) => {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: req.params.orderId },
+      include: { 
+        orderItems: { include: { menuItem: true } },
+        session: true
+      }
+    })
+    if (!order) return res.status(404).json({ error: 'Order not found' })
+    res.json(order)
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
