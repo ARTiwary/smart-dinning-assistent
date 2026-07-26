@@ -8,6 +8,7 @@ import CartDrawer from '@/components/CartDrawer'
 import AIChat from '@/components/AIChat'
 import GroupBanner from '@/components/GroupBanner'
 import { useStore } from '@/lib/store'
+import ComboBuilder from '@/components/ComboBuilder'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -305,6 +306,11 @@ function HeroSection({ sessionId }) {
           </div>
         </div>
       )}
+
+      {/* Combo Builder */}
+      <div style={{ marginTop: '20px' }}>
+        <ComboBuilder sessionId={sessionId} />
+      </div>
     </div>
   )
 }
