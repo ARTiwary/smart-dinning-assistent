@@ -41,7 +41,7 @@ router.get('/:orderId', async (req, res) => {
   try {
     const order = await prisma.order.findUnique({
       where: { id: req.params.orderId },
-      include: { 
+      include: {
         orderItems: { include: { menuItem: true } },
         session: true
       }

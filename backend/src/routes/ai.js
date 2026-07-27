@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { orchestrate } from '../orchestrator/index.js'
 import { initMenuEmbeddings } from '../lib/chroma.js'
 import { prisma } from '../db/prisma.js'
+import { llm } from '../lib/ollama.js'
 
 const router = Router()
 let embeddingsReady = false
@@ -70,7 +71,6 @@ Respond ONLY with JSON, no markdown:
   ]
 }`
 
-    const { llm } = await import('../lib/ollama.js')
     const response = await llm.invoke(prompt)
     const text = typeof response === 'string' ? response : response.content
     const clean = text.replace(/```json|```/g, '').trim()
