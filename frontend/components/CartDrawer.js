@@ -36,6 +36,14 @@ export default function CartDrawer() {
     if (session?.id) fetchCart(session.id)
   }, [session])
 
+  // Pre-fill phone and name from localStorage on mount
+  useEffect(() => {
+    const savedPhone = localStorage.getItem('customerPhone')
+    const savedName = localStorage.getItem('customerName')
+    if (savedPhone) setPhone(savedPhone)
+    if (savedName) setName(savedName)
+  }, [])
+
   const subtotal = cart.reduce(
     (s, i) => s + Number(i.menuItem?.price || 0) * i.quantity,
     0
@@ -66,10 +74,15 @@ export default function CartDrawer() {
       const { data: order } = await axios.post(`${API}/api/session/${session.id}/order`, {
         customerName: name, customerPhone: phone
       })
+
+      // Save phone and name for cross-session memory
+      localStorage.setItem('customerPhone', phone)
+      localStorage.setItem('customerName', name)
+
       setOrderPlaced(order)
       setCheckoutOpen(false)
       setCartOpen(false)
-      setName(''); setPhone(''); setOtp(''); setOtpSent(false); setErrors({})
+      setOtp(''); setOtpSent(false); setErrors({})
       useStore.getState().setCart([])
     } catch (e) {
       setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
@@ -78,14 +91,16 @@ export default function CartDrawer() {
   }
 
   async function cancelOrder(orderId) {
-    if (!confirm('Are you sure you want to cancel your order?')) return
+    if (!confirm('Cancel your order?')) return
     setCancelling(true)
     try {
       await axios.patch(`${API}/api/order/${orderId}/cancel`)
       setOrderPlaced(null)
-      alert('Order cancelled successfully.')
+      // Restore cart view
+      if (session?.id) fetchCart(session.id)
+      setCartOpen(true)
     } catch (e) {
-      alert('Could not cancel — order may already be preparing.')
+      alert('Could not cancel order')
     }
     setCancelling(false)
   }

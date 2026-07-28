@@ -8,4 +8,13 @@ router.get('/:tableId/session', async (req, res) => {
   res.json(session);
 });
 
+router.patch('/:sessionId/phone', async (req, res) => {
+  const { phone } = req.body
+  const session = await prisma.session.update({
+    where: { id: req.params.sessionId },
+    data: { customerPhone: phone }
+  })
+  res.json(session)
+});
+
 export default router;

@@ -1,11 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgvector(map: "vector")]
 }
 
 model MenuItem {
@@ -35,6 +37,7 @@ model Session {
   orders              Order[]
   createdAt           DateTime   @default(now())
   expiresAt           DateTime
+  customerPhone String?
 }
 
 model CartItem {
@@ -70,4 +73,15 @@ model OrderItem {
   price       Decimal  @db.Decimal(10, 2)
   order       Order    @relation(fields: [orderId], references: [id])
   menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+}
+
+model CustomerProfile {
+  id           String   @id @default(uuid())
+  phone        String   @unique
+  name         String?
+  preferences  Json     @default("{}")
+  orderCount   Int      @default(0)
+  totalSpent   Float    @default(0)
+  lastVisit    DateTime @default(now())
+  createdAt    DateTime @default(now())
 }

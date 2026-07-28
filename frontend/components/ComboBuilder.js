@@ -74,7 +74,7 @@ export default function ComboBuilder({ sessionId }) {
       {/* Modal */}
       {open && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 60,
+          position: 'fixed', inset: 0, zIndex: 99999,
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         }}>

@@ -38,6 +38,16 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
   const cartItems = await getCart(sessionId);
   const cartTotal = await getCartTotal(sessionId);
 
+  // Get cross-session memory if phone available
+  let profileMemory = null
+  try {
+    const session = await prisma.session.findUnique({ where: { id: sessionId } })
+    if (session?.customerPhone) {
+      const { getProfileMemory } = await import('../services/customerService.js')
+      profileMemory = await getProfileMemory(session.customerPhone)
+    }
+  } catch (e) {}
+
   // Step 4: Sentiment check (background)
   const sentiment = await sentimentAgent(userMessage);
 
@@ -85,8 +95,9 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
         userMessage,
         { ...context.preferences, ...nlu.preferences },
         cartItems,
-        context.preferences,
-        timeOfDay
+        { ...context.preferences, ...(profileMemory?.preferences || {}) },
+        timeOfDay,
+        profileMemory
       );
       response = {
         type: 'recommendation',

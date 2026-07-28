@@ -22,6 +22,15 @@ export default function TablePage() {
     async function init() {
       try {
         const { data: sess } = await axios.get(`${API}/api/table/${tableId}/session`)
+        
+        // Restore customer phone for cross-session memory
+        const savedPhone = localStorage.getItem('customerPhone')
+        if (savedPhone && sess?.id) {
+          await axios.patch(`${API}/api/session/${sess.id}/phone`, { 
+            phone: savedPhone 
+          }).catch(() => {})
+        }
+
         setSession(sess)
         const { data: menu } = await axios.get(`${API}/api/menu`)
         setMenu(menu)
