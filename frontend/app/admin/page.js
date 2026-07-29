@@ -26,6 +26,7 @@ export default function AdminPanel() {
   const [orders, setOrders] = useState([])
   const [stats, setStats] = useState(null)
   const [tables, setTables] = useState([])
+  const [menuItems, setMenuItems] = useState([])
   const [qrMap, setQrMap] = useState({})
   const [tableCount, setTableCount] = useState(10)
   const [loading, setLoading] = useState(true)
@@ -63,10 +64,23 @@ export default function AdminPanel() {
     }
   }, [])
 
+  async function fetchMenuItems() {
+    try {
+      const { data } = await axios.get(`${API}/api/admin/menu`, { headers })
+      setMenuItems(data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   useEffect(() => {
     if (!authed) return
     fetchData()
-    const interval = setInterval(fetchData, 10000)
+    fetchMenuItems()
+    const interval = setInterval(() => {
+      fetchData()
+      fetchMenuItems()
+    }, 10000)
     return () => clearInterval(interval)
   }, [authed, fetchData])
 
@@ -128,6 +142,7 @@ export default function AdminPanel() {
           { id: 'analytics', label: '📈 Analytics' },
           { id: 'orders', label: '🧾 Orders' },
           { id: 'tables', label: '🪑 Tables & QR' },
+          { id: 'menu', label: '🍽️ Menu' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '10px 20px', border: 'none', cursor: 'pointer',
@@ -153,6 +168,13 @@ export default function AdminPanel() {
             {tab === 'analytics' && <Analytics orders={orders} stats={stats} />}
             {tab === 'orders' && <Orders orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
             {tab === 'tables' && <Tables tables={tables} tableCount={tableCount} setTableCount={setTableCount} qrMap={qrMap} onGenerateQR={generateQR} onCloseTable={closeTable} />}
+            {tab === 'menu' && (
+              <MenuManagement
+                menuItems={menuItems}
+                onRefresh={fetchMenuItems}
+                headers={headers}
+              />
+            )}
           </>
         )}
       </div>
@@ -731,6 +753,322 @@ function OrderModal({ order, onClose, onStatusChange }) {
             Mark {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)} →
           </button>
         )}
+      </div>
+    </div>
+  )
+}
+
+function MenuManagement({ menuItems, onRefresh, headers }) {
+  const [editItem, setEditItem] = useState(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [filterCat, setFilterCat] = useState('All')
+
+  const categories = ['All', ...new Set(menuItems.map(i => i.category))]
+
+  const filtered = menuItems.filter(item => {
+    const matchSearch = !search || item.name.toLowerCase().includes(search.toLowerCase())
+    const matchCat = filterCat === 'All' || item.category === filterCat
+    return matchSearch && matchCat
+  })
+
+  async function toggleAvailability(id) {
+    await axios.patch(`${API}/api/admin/menu/${id}/toggle`, {}, { headers })
+    onRefresh()
+  }
+
+  async function deleteItem(id, name) {
+    if (!confirm(`Delete "${name}"?`)) return
+    await axios.delete(`${API}/api/admin/menu/${id}`, { headers })
+    onRefresh()
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px'
+      }}>
+        <div>
+          <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, margin: 0 }}>
+            Menu Management
+          </h3>
+          <p style={{ color: '#7a5f58', fontSize: '13px', margin: '4px 0 0' }}>
+            {menuItems.length} items total
+          </p>
+        </div>
+        <button
+          onClick={() => setAddOpen(true)}
+          style={{
+            background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+            border: 'none', color: '#fff',
+            padding: '10px 20px', borderRadius: '12px',
+            fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+          }}
+        >+ Add Item</button>
+      </div>
+
+      {/* Search + filter */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <input
+          placeholder="Search items..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            flex: 1, minWidth: '200px',
+            background: '#1a1220', border: '1px solid rgba(255,107,53,0.2)',
+            borderRadius: '10px', padding: '10px 14px',
+            color: '#fff5f0', fontSize: '14px', outline: 'none'
+          }}
+        />
+        <select
+          value={filterCat}
+          onChange={e => setFilterCat(e.target.value)}
+          style={{
+            background: '#1a1220', border: '1px solid rgba(255,107,53,0.2)',
+            borderRadius: '10px', padding: '10px 14px',
+            color: '#fff5f0', fontSize: '13px', outline: 'none', cursor: 'pointer'
+          }}
+        >
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      {/* Items grid */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {filtered.map(item => (
+          <div key={item.id} style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: `1px solid ${item.available ? 'rgba(255,107,53,0.12)' : 'rgba(255,100,100,0.15)'}`,
+            borderRadius: '14px', padding: '14px',
+            display: 'flex', alignItems: 'center', gap: '12px',
+            opacity: item.available ? 1 : 0.6
+          }}>
+            {/* Image */}
+            <div style={{
+              width: '52px', height: '52px', borderRadius: '10px',
+              overflow: 'hidden', flexShrink: 0,
+              background: 'rgba(255,107,53,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : <span style={{ fontSize: '22px' }}>🍽️</span>}
+            </div>
+
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                <p style={{
+                  color: '#fff5f0', fontSize: '14px', fontWeight: 600,
+                  margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                }}>{item.name}</p>
+                {!item.available && (
+                  <span style={{
+                    background: 'rgba(255,100,100,0.15)',
+                    border: '1px solid rgba(255,100,100,0.3)',
+                    color: '#ff6b6b', fontSize: '10px',
+                    padding: '2px 6px', borderRadius: '6px', flexShrink: 0
+                  }}>UNAVAILABLE</span>
+                )}
+              </div>
+              <p style={{ color: '#7a5f58', fontSize: '12px', margin: '0 0 4px' }}>
+                {item.category}
+              </p>
+              <p style={{
+                background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                fontSize: '14px', fontWeight: 700, margin: 0
+              }}>₹{item.price}</p>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+              <button
+                onClick={() => toggleAvailability(item.id)}
+                style={{
+                  background: item.available ? 'rgba(74,222,128,0.1)' : 'rgba(255,107,53,0.1)',
+                  border: `1px solid ${item.available ? 'rgba(74,222,128,0.3)' : 'rgba(255,107,53,0.3)'}`,
+                  color: item.available ? '#4ade80' : '#ff8c69',
+                  padding: '5px 10px', borderRadius: '8px',
+                  fontSize: '11px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >{item.available ? '✓ Available' : '✗ Unavailable'}</button>
+
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={() => setEditItem(item)}
+                  style={{
+                    flex: 1, background: 'rgba(255,107,53,0.1)',
+                    border: '1px solid rgba(255,107,53,0.2)',
+                    color: '#ff8c69', padding: '5px',
+                    borderRadius: '8px', fontSize: '12px', cursor: 'pointer'
+                  }}
+                >✏️</button>
+                <button
+                  onClick={() => deleteItem(item.id, item.name)}
+                  style={{
+                    flex: 1, background: 'rgba(255,100,100,0.1)',
+                    border: '1px solid rgba(255,100,100,0.2)',
+                    color: '#ff6b6b', padding: '5px',
+                    borderRadius: '8px', fontSize: '12px', cursor: 'pointer'
+                  }}
+                >🗑️</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add/Edit Modal */}
+      {(addOpen || editItem) && (
+        <MenuItemModal
+          item={editItem}
+          headers={headers}
+          onClose={() => { setAddOpen(false); setEditItem(null) }}
+          onSave={() => { setAddOpen(false); setEditItem(null); onRefresh() }}
+        />
+      )}
+    </div>
+  )
+}
+
+function MenuItemModal({ item, headers, onClose, onSave }) {
+  const isEdit = !!item
+  const [form, setForm] = useState({
+    name: item?.name || '',
+    category: item?.category || 'Veg Starters',
+    price: item?.price || '',
+    description: item?.description || '',
+    imageUrl: item?.imageUrl || '',
+    tags: item?.tags?.join(', ') || '',
+    allergens: item?.allergens?.join(', ') || '',
+    available: item?.available ?? true,
+    popularScore: item?.popularScore || 0.5,
+  })
+  const [loading, setLoading] = useState(false)
+
+  const CATEGORIES = [
+    'Veg Starters', 'Non-Veg Starters', 'Mains (Veg)',
+    'Mains (Non-Veg)', 'Breads & Rice', 'Desserts',
+    'Beverages (Hot)', 'Beverages (Cold)', 'Combos & Deals'
+  ]
+
+  async function save() {
+    if (!form.name || !form.price) return alert('Name and price are required')
+    setLoading(true)
+    const payload = {
+      ...form,
+      price: Number(form.price),
+      popularScore: Number(form.popularScore),
+      tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
+      allergens: form.allergens.split(',').map(a => a.trim()).filter(Boolean),
+    }
+    try {
+      if (isEdit) {
+        await axios.patch(`${API}/api/admin/menu/${item.id}`, payload, { headers })
+      } else {
+        await axios.post(`${API}/api/admin/menu`, payload, { headers })
+      }
+      onSave()
+    } catch (e) {
+      alert(e.response?.data?.error || 'Error saving item')
+    }
+    setLoading(false)
+  }
+
+  const inputStyle = {
+    width: '100%', background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,107,53,0.2)', borderRadius: '10px',
+    padding: '11px 14px', color: '#fff5f0', fontSize: '14px',
+    outline: 'none', marginBottom: '12px', boxSizing: 'border-box',
+    fontFamily: 'sans-serif'
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '20px'
+    }}>
+      <div style={{
+        background: 'linear-gradient(145deg, #1a1220, #201628)',
+        border: '1px solid rgba(255,107,53,0.25)',
+        borderRadius: '20px', padding: '28px',
+        width: '100%', maxWidth: '440px',
+        maxHeight: '85vh', overflowY: 'auto'
+      }}>
+        <h3 style={{
+          color: '#fff5f0', fontSize: '20px', fontWeight: 700,
+          marginBottom: '20px'
+        }}>{isEdit ? '✏️ Edit Item' : '+ Add New Item'}</h3>
+
+        <input placeholder="Item name *" value={form.name}
+          onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+          style={inputStyle} />
+
+        <select value={form.category}
+          onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
+          style={{ ...inputStyle, cursor: 'pointer' }}>
+          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        <input type="number" placeholder="Price (₹) *" value={form.price}
+          onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
+          style={inputStyle} />
+
+        <textarea placeholder="Description (max 120 chars)" value={form.description}
+          onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+          maxLength={120}
+          style={{ ...inputStyle, minHeight: '70px', resize: 'vertical' }} />
+
+        <input placeholder="Image URL" value={form.imageUrl}
+          onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))}
+          style={inputStyle} />
+
+        <input placeholder="Tags (comma separated: spicy, veg, bestseller)"
+          value={form.tags}
+          onChange={e => setForm(p => ({ ...p, tags: e.target.value }))}
+          style={inputStyle} />
+
+        <input placeholder="Allergens (comma separated: dairy, gluten)"
+          value={form.allergens}
+          onChange={e => setForm(p => ({ ...p, allergens: e.target.value }))}
+          style={inputStyle} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <label style={{ color: '#c8a49a', fontSize: '14px' }}>Available</label>
+          <button
+            onClick={() => setForm(p => ({ ...p, available: !p.available }))}
+            style={{
+              background: form.available ? 'rgba(74,222,128,0.15)' : 'rgba(255,100,100,0.1)',
+              border: `1px solid ${form.available ? 'rgba(74,222,128,0.3)' : 'rgba(255,100,100,0.2)'}`,
+              color: form.available ? '#4ade80' : '#ff6b6b',
+              padding: '6px 14px', borderRadius: '8px',
+              fontSize: '13px', cursor: 'pointer'
+            }}
+          >{form.available ? '✓ Yes' : '✗ No'}</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={save} disabled={loading} style={{
+            flex: 1,
+            background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+            border: 'none', color: '#fff', padding: '14px',
+            borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+            cursor: 'pointer', opacity: loading ? 0.6 : 1
+          }}>{loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Item'}</button>
+
+          <button onClick={onClose} style={{
+            flex: 1, background: 'transparent',
+            border: '1px solid rgba(255,107,53,0.2)',
+            color: '#7a5f58', padding: '14px',
+            borderRadius: '12px', fontSize: '14px', cursor: 'pointer'
+          }}>Cancel</button>
+        </div>
       </div>
     </div>
   )

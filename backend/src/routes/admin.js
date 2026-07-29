@@ -137,4 +137,58 @@ router.patch('/orders/:id/status', adminAuth, async (req, res) => {
   })
   res.json(order)
 })
+
+// Get all menu items
+router.get('/menu', adminAuth, async (req, res) => {
+  const items = await prisma.menuItem.findMany({ orderBy: { category: 'asc' } })
+  res.json(items)
+})
+
+// Add new menu item
+router.post('/menu', adminAuth, async (req, res) => {
+  try {
+    const item = await prisma.menuItem.create({ data: req.body })
+    res.json(item)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Update menu item
+router.patch('/menu/:id', adminAuth, async (req, res) => {
+  try {
+    const item = await prisma.menuItem.update({
+      where: { id: req.params.id },
+      data: req.body
+    })
+    res.json(item)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Delete menu item
+router.delete('/menu/:id', adminAuth, async (req, res) => {
+  try {
+    await prisma.menuItem.delete({ where: { id: req.params.id } })
+    res.json({ success: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Toggle availability
+router.patch('/menu/:id/toggle', adminAuth, async (req, res) => {
+  try {
+    const item = await prisma.menuItem.findUnique({ where: { id: req.params.id } })
+    const updated = await prisma.menuItem.update({
+      where: { id: req.params.id },
+      data: { available: !item.available }
+    })
+    res.json(updated)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+});
+
 export default router;
