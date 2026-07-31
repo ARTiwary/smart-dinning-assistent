@@ -32,6 +32,79 @@ export default function TrackOrder() {
     }
   }
 
+  async function downloadBill(order) {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] })
+  const W = 80
+  let y = 10
+
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.text('SPICE GARDEN', W / 2, y, { align: 'center' })
+  y += 6
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.text('AI-Powered Dining Experience', W / 2, y, { align: 'center' })
+  y += 8
+  doc.line(5, y, W - 5, y)
+  y += 6
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`Order: #${order.id?.slice(0, 8).toUpperCase()}`, 5, y)
+  y += 5
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Customer: ${order.customerName}`, 5, y)
+  y += 5
+  doc.text(`Table: ${order.session?.tableId || 'T1'}`, 5, y)
+  y += 5
+  doc.text(`Date: ${new Date(order.createdAt).toLocaleString('en-IN')}`, 5, y)
+  y += 8
+  doc.line(5, y, W - 5, y)
+  y += 5
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('Item', 5, y)
+  doc.text('Qty', 48, y)
+  doc.text('Total', 68, y)
+  y += 4
+  doc.line(5, y, W - 5, y)
+  y += 5
+
+  doc.setFont('helvetica', 'normal')
+  order.orderItems?.forEach(oi => {
+    const lines = doc.splitTextToSize(oi.menuItem?.name || 'Item', 40)
+    doc.text(lines, 5, y)
+    doc.text(String(oi.quantity), 48, y)
+    doc.text(`${(Number(oi.price) * oi.quantity).toFixed(0)}`, 68, y)
+    y += lines.length * 5 + 2
+  })
+
+  y += 3
+  doc.line(5, y, W - 5, y)
+  y += 6
+
+  const subtotal = Number(order.totalAmount) - Number(order.taxAmount)
+  doc.text('Subtotal:', 5, y)
+  doc.text(`Rs.${subtotal.toFixed(0)}`, W - 5, y, { align: 'right' })
+  y += 5
+  doc.text('GST (5%):', 5, y)
+  doc.text(`Rs.${Number(order.taxAmount).toFixed(0)}`, W - 5, y, { align: 'right' })
+  y += 5
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text('TOTAL:', 5, y)
+  doc.text(`Rs.${Number(order.totalAmount).toFixed(0)}`, W - 5, y, { align: 'right' })
+  y += 8
+  doc.line(5, y, W - 5, y)
+  y += 6
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.text('Thank you for dining with us! 🍛', W / 2, y, { align: 'center' })
+
+  doc.save(`SpiceGarden-Bill-${order.id?.slice(0, 8).toUpperCase()}.pdf`)
+}
+
   useEffect(() => {
     if (!orderId) return
     fetchOrder()
@@ -207,6 +280,18 @@ export default function TrackOrder() {
             <span>₹{(Number(oi.price) * oi.quantity).toFixed(0)}</span>
           </div>
         ))}
+        {['ready', 'delivered'].includes(order.status) && (
+  <button
+    onClick={() => downloadBill(order)}
+    style={{
+      width: '100%', marginTop: '12px',
+      background: 'rgba(74,222,128,0.1)',
+      border: '1px solid rgba(74,222,128,0.25)',
+      color: '#4ade80', padding: '13px', borderRadius: '14px',
+      fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+    }}
+  >📄 Download Bill (PDF)</button>
+)}
 
         <div style={{
           borderTop: '1px solid rgba(255,107,53,0.12)',

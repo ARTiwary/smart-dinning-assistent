@@ -105,6 +105,121 @@ export default function CartDrawer() {
     setCancelling(false)
   }
 
+  async function downloadBill(order) {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [80, 200]  // Receipt width
+  })
+
+  const W = 80
+  let y = 10
+
+  // Header
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.text('SPICE GARDEN', W / 2, y, { align: 'center' })
+  y += 6
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.text('AI-Powered Dining Experience', W / 2, y, { align: 'center' })
+  y += 4
+  doc.text('www.spicegarden.com', W / 2, y, { align: 'center' })
+  y += 8
+
+  // Divider
+  doc.setLineWidth(0.3)
+  doc.line(5, y, W - 5, y)
+  y += 6
+
+  // Order info
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`Order: #${order.id?.slice(0, 8).toUpperCase()}`, 5, y)
+  y += 5
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Customer: ${order.customerName}`, 5, y)
+  y += 5
+  doc.text(`Phone: ${order.customerPhone}`, 5, y)
+  y += 5
+  doc.text(`Table: ${order.session?.tableId || 'T1'}`, 5, y)
+  y += 5
+  doc.text(`Date: ${new Date(order.createdAt).toLocaleString('en-IN')}`, 5, y)
+  y += 8
+
+  // Divider
+  doc.line(5, y, W - 5, y)
+  y += 5
+
+  // Items header
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.text('Item', 5, y)
+  doc.text('Qty', 48, y)
+  doc.text('Price', 58, y)
+  doc.text('Total', 68, y)
+  y += 4
+
+  doc.line(5, y, W - 5, y)
+  y += 5
+
+  // Items
+  doc.setFont('helvetica', 'normal')
+  order.orderItems?.forEach(oi => {
+    const name = oi.menuItem?.name || 'Item'
+    const qty = oi.quantity
+    const price = Number(oi.price)
+    const total = price * qty
+
+    // Wrap long names
+    const lines = doc.splitTextToSize(name, 40)
+    doc.text(lines, 5, y)
+    doc.text(String(qty), 48, y)
+    doc.text(`${price}`, 58, y)
+    doc.text(`${total}`, 68, y)
+    y += lines.length * 5 + 2
+  })
+
+  y += 3
+  doc.line(5, y, W - 5, y)
+  y += 6
+
+  // Totals
+  const subtotal = Number(order.totalAmount) - Number(order.taxAmount)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Subtotal:', 5, y)
+  doc.text(`Rs.${subtotal.toFixed(0)}`, W - 5, y, { align: 'right' })
+  y += 5
+
+  doc.text('GST (5%):', 5, y)
+  doc.text(`Rs.${Number(order.taxAmount).toFixed(0)}`, W - 5, y, { align: 'right' })
+  y += 5
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text('TOTAL:', 5, y)
+  doc.text(`Rs.${Number(order.totalAmount).toFixed(0)}`, W - 5, y, { align: 'right' })
+  y += 8
+
+  // Divider
+  doc.setLineWidth(0.3)
+  doc.line(5, y, W - 5, y)
+  y += 6
+
+  // Footer
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.text('Thank you for dining with us!', W / 2, y, { align: 'center' })
+  y += 5
+  doc.text('Please visit again 🍛', W / 2, y, { align: 'center' })
+  y += 5
+  doc.text('Powered by Zara AI', W / 2, y, { align: 'center' })
+
+  // Save
+  doc.save(`SpiceGarden-Bill-${order.id?.slice(0, 8).toUpperCase()}.pdf`)
+}
   const inputStyle = (hasError) => ({
     width: '100%',
     background: 'rgba(255,255,255,0.04)',
@@ -773,6 +888,17 @@ export default function CartDrawer() {
                color: '#ff8c69', padding: '12px', borderRadius: '14px',
                fontSize: '14px', fontWeight: 600, cursor: 'pointer',
                }}>📍 Track My Order</button>
+
+               {/* Download Bill button */}
+               <button
+               onClick={() => downloadBill(orderPlaced)}
+               style={{width: '100%', marginBottom: '10px',
+                background: 'rgba(74,222,128,0.1)',
+                border: '1px solid rgba(74,222,128,0.25)',
+                color: '#4ade80', padding: '13px', borderRadius: '14px',
+                fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                }}>📄 Download Bill (PDF)</button>
 
             <button onClick={() => setOrderPlaced(null)} style={{
               width: '100%', marginBottom: '10px',
