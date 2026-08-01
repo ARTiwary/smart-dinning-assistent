@@ -85,3 +85,16 @@ model CustomerProfile {
   lastVisit    DateTime @default(now())
   createdAt    DateTime @default(now())
 }
+
+model Coupon {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  discount    Float
+  type        String   @default("percentage")
+  minOrder    Float    @default(0)
+  maxUses     Int      @default(100)
+  usedCount   Int      @default(0)
+  active      Boolean  @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+}

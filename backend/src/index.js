@@ -83,6 +83,53 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Smart Dining Backend is running 🚀' })
 })
 
+// Verify coupon
+app.post('/api/coupon/verify', async (req, res) => {
+  const { code, orderTotal } = req.body
+  try {
+    const coupon = await prisma.coupon.findUnique({
+      where: { code: code.toUpperCase() }
+    })
+    if (!coupon) return res.status(404).json({ error: 'Invalid coupon code' })
+    if (!coupon.active) return res.status(400).json({ error: 'Coupon is inactive' })
+    if (coupon.usedCount >= coupon.maxUses) return res.status(400).json({ error: 'Coupon limit reached' })
+    if (coupon.expiresAt && new Date() > new Date(coupon.expiresAt)) {
+      return res.status(400).json({ error: 'Coupon has expired' })
+    }
+    if (orderTotal < coupon.minOrder) {
+      return res.status(400).json({ error: `Minimum order ₹${coupon.minOrder} required` })
+    }
+
+    const discount = coupon.type === 'percentage'
+      ? (orderTotal * coupon.discount) / 100
+      : coupon.discount
+
+    res.json({
+      valid: true,
+      discount: Math.min(discount, orderTotal),
+      type: coupon.type,
+      percentage: coupon.discount,
+      code: coupon.code
+    })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Apply coupon (increment usage)
+app.post('/api/coupon/apply', async (req, res) => {
+  const { code } = req.body
+  try {
+    await prisma.coupon.update({
+      where: { code: code.toUpperCase() },
+      data: { usedCount: { increment: 1 } }
+    })
+    res.json({ success: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 setupSocketHandlers(io)
 
 const PORT = process.env.PORT || 4000

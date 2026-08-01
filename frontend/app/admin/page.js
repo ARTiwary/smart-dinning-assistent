@@ -27,6 +27,7 @@ export default function AdminPanel() {
   const [stats, setStats] = useState(null)
   const [tables, setTables] = useState([])
   const [menuItems, setMenuItems] = useState([])
+  const [coupons, setCoupons] = useState([])
   const [qrMap, setQrMap] = useState({})
   const [tableCount, setTableCount] = useState(10)
   const [loading, setLoading] = useState(true)
@@ -73,13 +74,24 @@ export default function AdminPanel() {
     }
   }
 
+  async function fetchCoupons() {
+    try {
+      const { data } = await axios.get(`${API}/api/admin/coupons`, { headers })
+      setCoupons(data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   useEffect(() => {
     if (!authed) return
     fetchData()
     fetchMenuItems()
+    fetchCoupons()
     const interval = setInterval(() => {
       fetchData()
       fetchMenuItems()
+      fetchCoupons()
     }, 10000)
     return () => clearInterval(interval)
   }, [authed, fetchData])
@@ -143,6 +155,7 @@ export default function AdminPanel() {
           { id: 'orders', label: '🧾 Orders' },
           { id: 'tables', label: '🪑 Tables & QR' },
           { id: 'menu', label: '🍽️ Menu' },
+          { id: 'coupons', label: '🎟️ Coupons' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '10px 20px', border: 'none', cursor: 'pointer',
@@ -175,6 +188,7 @@ export default function AdminPanel() {
                 headers={headers}
               />
             )}
+            {tab === 'coupons' && <CouponManager coupons={coupons} onRefresh={fetchCoupons} headers={headers} />}
           </>
         )}
       </div>
@@ -182,6 +196,196 @@ export default function AdminPanel() {
       {/* Order detail modal */}
       {selectedOrder && (
         <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatusChange={updateStatus} />
+      )}
+    </div>
+  )
+}
+
+function CouponManager({ coupons, onRefresh, headers }) {
+  const [addOpen, setAddOpen] = useState(false)
+  const [form, setForm] = useState({
+    code: '', discount: '', type: 'percentage', minOrder: 0, maxUses: 100
+  })
+  const [loading, setLoading] = useState(false)
+
+  async function createCoupon() {
+    if (!form.code || !form.discount) return alert('Code and discount required')
+    setLoading(true)
+    try {
+      await axios.post(`${API}/api/admin/coupons`, {
+        ...form,
+        code: form.code.toUpperCase(),
+        discount: Number(form.discount),
+        minOrder: Number(form.minOrder),
+        maxUses: Number(form.maxUses),
+      }, { headers })
+      setAddOpen(false)
+      setForm({ code: '', discount: '', type: 'percentage', minOrder: 0, maxUses: 100 })
+      onRefresh()
+    } catch (e) {
+      alert(e.response?.data?.error || 'Error creating coupon')
+    }
+    setLoading(false)
+  }
+
+  async function deleteCoupon(id, code) {
+    if (!confirm(`Delete coupon "${code}"?`)) return
+    await axios.delete(`${API}/api/admin/coupons/${id}`, { headers })
+    onRefresh()
+  }
+
+  async function toggleCoupon(id) {
+    await axios.patch(`${API}/api/admin/coupons/${id}/toggle`, {}, { headers })
+    onRefresh()
+  }
+
+  const inputStyle = {
+    width: '100%', background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,107,53,0.2)', borderRadius: '10px',
+    padding: '11px 14px', color: '#fff5f0', fontSize: '14px',
+    outline: 'none', marginBottom: '12px', boxSizing: 'border-box',
+    fontFamily: 'sans-serif'
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, margin: 0 }}>
+          Discount Coupons
+        </h3>
+        <button
+          onClick={() => setAddOpen(true)}
+          style={{
+            background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+            border: 'none', color: '#fff',
+            padding: '10px 20px', borderRadius: '12px',
+            fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+          }}
+        >+ Create Coupon</button>
+      </div>
+
+      {/* Coupons list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {coupons.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#7a5f58' }}>
+            <p style={{ fontSize: '32px', marginBottom: '8px' }}>🎟️</p>
+            <p>No coupons yet. Create one!</p>
+          </div>
+        )}
+        {coupons.map(coupon => (
+          <div key={coupon.id} style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: `1px solid ${coupon.active ? 'rgba(255,107,53,0.15)' : 'rgba(255,255,255,0.05)'}`,
+            borderRadius: '14px', padding: '16px',
+            display: 'flex', alignItems: 'center', gap: '16px',
+            opacity: coupon.active ? 1 : 0.5
+          }}>
+            <div style={{
+              width: '52px', height: '52px', borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,107,157,0.1))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '24px', flexShrink: 0
+            }}>🎟️</div>
+
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <p style={{ color: '#fff5f0', fontSize: '16px', fontWeight: 800, margin: 0, letterSpacing: '0.05em' }}>
+                  {coupon.code}
+                </p>
+                {!coupon.active && (
+                  <span style={{
+                    background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.2)',
+                    color: '#ff6b6b', fontSize: '10px', padding: '2px 6px', borderRadius: '6px'
+                  }}>INACTIVE</span>
+                )}
+              </div>
+              <p style={{ color: '#ff8c69', fontSize: '13px', fontWeight: 600, margin: '0 0 2px' }}>
+                {coupon.type === 'percentage' ? `${coupon.discount}% off` : `₹${coupon.discount} flat off`}
+                {coupon.minOrder > 0 && ` · Min ₹${coupon.minOrder}`}
+              </p>
+              <p style={{ color: '#7a5f58', fontSize: '11px', margin: 0 }}>
+                Used {coupon.usedCount}/{coupon.maxUses} times
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <button onClick={() => toggleCoupon(coupon.id)} style={{
+                background: coupon.active ? 'rgba(74,222,128,0.1)' : 'rgba(255,107,53,0.1)',
+                border: `1px solid ${coupon.active ? 'rgba(74,222,128,0.3)' : 'rgba(255,107,53,0.2)'}`,
+                color: coupon.active ? '#4ade80' : '#ff8c69',
+                padding: '5px 12px', borderRadius: '8px',
+                fontSize: '11px', fontWeight: 600, cursor: 'pointer'
+              }}>{coupon.active ? '✓ Active' : '✗ Inactive'}</button>
+              <button onClick={() => deleteCoupon(coupon.id, coupon.code)} style={{
+                background: 'rgba(255,100,100,0.08)',
+                border: '1px solid rgba(255,100,100,0.2)',
+                color: '#ff6b6b', padding: '5px 12px',
+                borderRadius: '8px', fontSize: '11px',
+                fontWeight: 600, cursor: 'pointer'
+              }}>🗑️ Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Create modal */}
+      {addOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: '1px solid rgba(255,107,53,0.25)',
+            borderRadius: '20px', padding: '28px',
+            width: '100%', maxWidth: '380px'
+          }}>
+            <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, marginBottom: '20px' }}>
+              🎟️ Create Coupon
+            </h3>
+
+            <input placeholder="Coupon code (e.g. SAVE20)" value={form.code}
+              onChange={e => setForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+              style={inputStyle} />
+
+            <select value={form.type}
+              onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
+              style={{ ...inputStyle, cursor: 'pointer' }}>
+              <option value="percentage">Percentage discount (%)</option>
+              <option value="flat">Flat discount (₹)</option>
+            </select>
+
+            <input type="number"
+              placeholder={form.type === 'percentage' ? 'Discount % (e.g. 20)' : 'Discount amount ₹'}
+              value={form.discount}
+              onChange={e => setForm(p => ({ ...p, discount: e.target.value }))}
+              style={inputStyle} />
+
+            <input type="number" placeholder="Minimum order value (₹)" value={form.minOrder}
+              onChange={e => setForm(p => ({ ...p, minOrder: e.target.value }))}
+              style={inputStyle} />
+
+            <input type="number" placeholder="Max uses (default 100)" value={form.maxUses}
+              onChange={e => setForm(p => ({ ...p, maxUses: e.target.value }))}
+              style={inputStyle} />
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={createCoupon} disabled={loading} style={{
+                flex: 1, background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                border: 'none', color: '#fff', padding: '14px',
+                borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+                cursor: 'pointer', opacity: loading ? 0.6 : 1
+              }}>{loading ? 'Creating...' : 'Create'}</button>
+              <button onClick={() => setAddOpen(false)} style={{
+                flex: 1, background: 'transparent',
+                border: '1px solid rgba(255,107,53,0.2)',
+                color: '#7a5f58', padding: '14px',
+                borderRadius: '12px', fontSize: '14px', cursor: 'pointer'
+              }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

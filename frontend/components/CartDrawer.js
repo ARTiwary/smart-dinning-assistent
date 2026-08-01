@@ -31,6 +31,11 @@ export default function CartDrawer() {
   
   // Local state to keep track of any images that fail to load
   const [failedImages, setFailedImages] = useState({})
+
+  const [couponCode, setCouponCode] = useState('')
+  const [coupon, setCoupon] = useState(null)
+  const [couponError, setCouponError] = useState('')
+  const [couponLoading, setCouponLoading] = useState(false)
   
   useEffect(() => {
     if (session?.id) fetchCart(session.id)
@@ -60,30 +65,71 @@ export default function CartDrawer() {
     setErrors(e)
     if (Object.keys(e).length > 0) return
     setLoading(true)
-    await axios.post(`${API}/api/otp/send`, { phone })
-    setOtpSent(true)
+    try {
+      await axios.post(`${API}/api/otp/send`, { phone })
+      setOtpSent(true)
+    } catch (err) {
+      setErrors({ general: 'Failed to send OTP' })
+    }
     setLoading(false)
   }
 
+  async function verifyCoupon() {
+    if (!couponCode.trim()) return
+    setCouponLoading(true)
+    setCouponError('')
+    try {
+      const { data } = await axios.post(`${API}/api/coupon/verify`, {
+        code: couponCode.toUpperCase(),
+        orderTotal: total
+      })
+      setCoupon(data)
+    } catch (e) {
+      setCouponError(e.response?.data?.error || 'Invalid coupon')
+      setCoupon(null)
+    }
+    setCouponLoading(false)
+  }
+
   async function placeOrder() {
-    if (otp.length !== 6) { setErrors({ otp: 'OTP must be 6 digits' }); return }
+    if (otp.length !== 6) { 
+      setErrors({ otp: 'OTP must be 6 digits' })
+      return 
+    }
     setLoading(true)
     try {
       const { data: v } = await axios.post(`${API}/api/otp/verify`, { phone, otp })
-      if (!v.valid) { setErrors({ otp: 'Invalid OTP. Try again.' }); setLoading(false); return }
+      if (!v.valid) { 
+        setErrors({ otp: 'Invalid OTP. Try again.' })
+        setLoading(false)
+        return 
+      }
+
       const { data: order } = await axios.post(`${API}/api/session/${session.id}/order`, {
-        customerName: name, customerPhone: phone
+        customerName: name, 
+        customerPhone: phone,
+        couponCode: coupon?.code,
+        discountAmount: coupon?.discount || 0
       })
+
+      // Apply coupon usage
+      if (coupon) {
+        await axios.post(`${API}/api/coupon/apply`, { code: coupon.code })
+      }
 
       // Save phone and name for cross-session memory
       localStorage.setItem('customerPhone', phone)
       localStorage.setItem('customerName', name)
 
-      setOrderPlaced(order)
+      setOrderPlaced({ ...order, discountAmount: coupon?.discount || 0 })
       setCheckoutOpen(false)
       setCartOpen(false)
-      setOtp(''); setOtpSent(false); setErrors({})
-      useStore.getState().setCart([])
+      setOtp('')
+      setOtpSent(false)
+      setErrors({})
+      setCoupon(null)
+      setCouponCode('')
+      setCart([])
     } catch (e) {
       setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
     }
@@ -106,120 +152,127 @@ export default function CartDrawer() {
   }
 
   async function downloadBill(order) {
-  const { jsPDF } = await import('jspdf')
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: [80, 200]  // Receipt width
-  })
+    const { jsPDF } = await import('jspdf')
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [80, 200]  // Receipt width
+    })
 
-  const W = 80
-  let y = 10
+    const W = 80
+    let y = 10
 
-  // Header
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
-  doc.text('SPICE GARDEN', W / 2, y, { align: 'center' })
-  y += 6
+    // Header
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('SPICE GARDEN', W / 2, y, { align: 'center' })
+    y += 6
 
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.text('AI-Powered Dining Experience', W / 2, y, { align: 'center' })
-  y += 4
-  doc.text('www.spicegarden.com', W / 2, y, { align: 'center' })
-  y += 8
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.text('AI-Powered Dining Experience', W / 2, y, { align: 'center' })
+    y += 4
+    doc.text('www.spicegarden.com', W / 2, y, { align: 'center' })
+    y += 8
 
-  // Divider
-  doc.setLineWidth(0.3)
-  doc.line(5, y, W - 5, y)
-  y += 6
+    // Divider
+    doc.setLineWidth(0.3)
+    doc.line(5, y, W - 5, y)
+    y += 6
 
-  // Order info
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Order: #${order.id?.slice(0, 8).toUpperCase()}`, 5, y)
-  y += 5
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Customer: ${order.customerName}`, 5, y)
-  y += 5
-  doc.text(`Phone: ${order.customerPhone}`, 5, y)
-  y += 5
-  doc.text(`Table: ${order.session?.tableId || 'T1'}`, 5, y)
-  y += 5
-  doc.text(`Date: ${new Date(order.createdAt).toLocaleString('en-IN')}`, 5, y)
-  y += 8
+    // Order info
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Order: #${order.id?.slice(0, 8).toUpperCase()}`, 5, y)
+    y += 5
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Customer: ${order.customerName}`, 5, y)
+    y += 5
+    doc.text(`Phone: ${order.customerPhone}`, 5, y)
+    y += 5
+    doc.text(`Table: ${order.session?.tableId || 'T1'}`, 5, y)
+    y += 5
+    doc.text(`Date: ${new Date(order.createdAt).toLocaleString('en-IN')}`, 5, y)
+    y += 8
 
-  // Divider
-  doc.line(5, y, W - 5, y)
-  y += 5
+    // Divider
+    doc.line(5, y, W - 5, y)
+    y += 5
 
-  // Items header
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.text('Item', 5, y)
-  doc.text('Qty', 48, y)
-  doc.text('Price', 58, y)
-  doc.text('Total', 68, y)
-  y += 4
+    // Items header
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.text('Item', 5, y)
+    doc.text('Qty', 48, y)
+    doc.text('Price', 58, y)
+    doc.text('Total', 68, y)
+    y += 4
 
-  doc.line(5, y, W - 5, y)
-  y += 5
+    doc.line(5, y, W - 5, y)
+    y += 5
 
-  // Items
-  doc.setFont('helvetica', 'normal')
-  order.orderItems?.forEach(oi => {
-    const name = oi.menuItem?.name || 'Item'
-    const qty = oi.quantity
-    const price = Number(oi.price)
-    const total = price * qty
+    // Items
+    doc.setFont('helvetica', 'normal')
+    order.orderItems?.forEach(oi => {
+      const name = oi.menuItem?.name || 'Item'
+      const qty = oi.quantity
+      const price = Number(oi.price)
+      const total = price * qty
 
-    // Wrap long names
-    const lines = doc.splitTextToSize(name, 40)
-    doc.text(lines, 5, y)
-    doc.text(String(qty), 48, y)
-    doc.text(`${price}`, 58, y)
-    doc.text(`${total}`, 68, y)
-    y += lines.length * 5 + 2
-  })
+      // Wrap long names
+      const lines = doc.splitTextToSize(name, 40)
+      doc.text(lines, 5, y)
+      doc.text(String(qty), 48, y)
+      doc.text(`${price}`, 58, y)
+      doc.text(`${total}`, 68, y)
+      y += lines.length * 5 + 2
+    })
 
-  y += 3
-  doc.line(5, y, W - 5, y)
-  y += 6
+    y += 3
+    doc.line(5, y, W - 5, y)
+    y += 6
 
-  // Totals
-  const subtotal = Number(order.totalAmount) - Number(order.taxAmount)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Subtotal:', 5, y)
-  doc.text(`Rs.${subtotal.toFixed(0)}`, W - 5, y, { align: 'right' })
-  y += 5
+    // Totals
+    const billSubtotal = Number(order.totalAmount) - Number(order.taxAmount)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Subtotal:', 5, y)
+    doc.text(`Rs.${billSubtotal.toFixed(0)}`, W - 5, y, { align: 'right' })
+    y += 5
 
-  doc.text('GST (5%):', 5, y)
-  doc.text(`Rs.${Number(order.taxAmount).toFixed(0)}`, W - 5, y, { align: 'right' })
-  y += 5
+    doc.text('GST (5%):', 5, y)
+    doc.text(`Rs.${Number(order.taxAmount).toFixed(0)}`, W - 5, y, { align: 'right' })
+    y += 5
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.text('TOTAL:', 5, y)
-  doc.text(`Rs.${Number(order.totalAmount).toFixed(0)}`, W - 5, y, { align: 'right' })
-  y += 8
+    if (order.discountAmount > 0) {
+      doc.text('Discount:', 5, y)
+      doc.text(`-Rs.${Number(order.discountAmount).toFixed(0)}`, W - 5, y, { align: 'right' })
+      y += 5
+    }
 
-  // Divider
-  doc.setLineWidth(0.3)
-  doc.line(5, y, W - 5, y)
-  y += 6
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.text('TOTAL:', 5, y)
+    doc.text(`Rs.${(Number(order.totalAmount) - Number(order.discountAmount || 0)).toFixed(0)}`, W - 5, y, { align: 'right' })
+    y += 8
 
-  // Footer
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text('Thank you for dining with us!', W / 2, y, { align: 'center' })
-  y += 5
-  doc.text('Please visit again 🍛', W / 2, y, { align: 'center' })
-  y += 5
-  doc.text('Powered by Zara AI', W / 2, y, { align: 'center' })
+    // Divider
+    doc.setLineWidth(0.3)
+    doc.line(5, y, W - 5, y)
+    y += 6
 
-  // Save
-  doc.save(`SpiceGarden-Bill-${order.id?.slice(0, 8).toUpperCase()}.pdf`)
-}
+    // Footer
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text('Thank you for dining with us!', W / 2, y, { align: 'center' })
+    y += 5
+    doc.text('Please visit again 🍛', W / 2, y, { align: 'center' })
+    y += 5
+    doc.text('Powered by Zara AI', W / 2, y, { align: 'center' })
+
+    // Save
+    doc.save(`SpiceGarden-Bill-${order.id?.slice(0, 8).toUpperCase()}.pdf`)
+  }
+
   const inputStyle = (hasError) => ({
     width: '100%',
     background: 'rgba(255,255,255,0.04)',
@@ -725,7 +778,7 @@ export default function CartDrawer() {
             >
               Total:{' '}
               <span style={{ color: '#ff8c69', fontWeight: 700 }}>
-                ₹{total.toFixed(0)}
+                ₹{coupon ? (total - coupon.discount).toFixed(0) : total.toFixed(0)}
               </span>
             </p>
             {errors.general && (
@@ -765,6 +818,95 @@ export default function CartDrawer() {
               style={inputStyle(!!errors.phone)}
             />
             {errors.phone && <p style={{ color: '#ff6b6b', fontSize: '11px', marginBottom: '8px' }}>⚠ {errors.phone}</p>}
+
+            {/* Coupon code */}
+            {!otpSent && (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Coupon code (optional)"
+                    value={couponCode}
+                    onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCoupon(null); setCouponError('') }}
+                    style={{
+                      flex: 1, background: 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${coupon ? 'rgba(74,222,128,0.4)' : 'rgba(255,107,53,0.2)'}`,
+                      borderRadius: '12px', padding: '13px 16px',
+                      color: '#fff5f0', fontSize: '14px',
+                      fontFamily: 'var(--font-body)', outline: 'none',
+                      letterSpacing: '0.05em'
+                    }}
+                  />
+                  <button
+                    onClick={verifyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    style={{
+                      background: 'rgba(255,107,53,0.15)',
+                      border: '1px solid rgba(255,107,53,0.3)',
+                      color: '#ff8c69', padding: '13px 14px',
+                      borderRadius: '12px', fontSize: '13px',
+                      fontWeight: 700, cursor: 'pointer',
+                      flexShrink: 0, fontFamily: 'var(--font-body)'
+                    }}
+                  >{couponLoading ? '...' : 'Apply'}</button>
+                </div>
+
+                {/* Coupon success */}
+                {coupon && (
+                  <div style={{
+                    background: 'rgba(74,222,128,0.08)',
+                    border: '1px solid rgba(74,222,128,0.25)',
+                    borderRadius: '10px', padding: '10px 14px',
+                    marginTop: '8px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                  }}>
+                    <div>
+                      <p style={{ color: '#4ade80', fontSize: '13px', fontWeight: 700, margin: 0 }}>
+                        ✓ {coupon.code} applied!
+                      </p>
+                      <p style={{ color: '#888', fontSize: '11px', margin: '2px 0 0' }}>
+                        {coupon.type === 'percentage' ? `${coupon.percentage}% off` : `₹${coupon.discount} off`}
+                      </p>
+                    </div>
+                    <p style={{
+                      background: 'linear-gradient(135deg, #4ade80, #22d3ee)',
+                      WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                      fontSize: '16px', fontWeight: 800, margin: 0
+                    }}>-₹{coupon.discount.toFixed(0)}</p>
+                  </div>
+                )}
+
+                {/* Coupon error */}
+                {couponError && (
+                  <p style={{ color: '#ff6b6b', fontSize: '11px', marginTop: '6px', paddingLeft: '4px' }}>
+                    ⚠ {couponError}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Updated total with discount */}
+            {coupon && (
+              <div style={{
+                background: 'rgba(255,107,53,0.06)',
+                border: '1px solid rgba(255,107,53,0.15)',
+                borderRadius: '10px', padding: '10px 14px', marginBottom: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7a5f58', fontSize: '12px', marginBottom: '4px' }}>
+                  <span>Original total</span><span>₹{total.toFixed(0)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4ade80', fontSize: '12px', marginBottom: '4px' }}>
+                  <span>Discount</span><span>-₹{coupon.discount.toFixed(0)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fff5f0', fontSize: '14px', fontWeight: 700 }}>
+                  <span>Final total</span>
+                  <span style={{
+                    background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
+                  }}>₹{(total - coupon.discount).toFixed(0)}</span>
+                </div>
+              </div>
+            )}
 
             {otpSent && (
               <input
@@ -867,7 +1009,7 @@ export default function CartDrawer() {
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 700, color: '#fff5f0', marginBottom: '6px' }}>Order Placed!</h3>
             <p style={{ color: '#7a5f58', fontSize: '12px', marginBottom: '6px' }}>#{orderPlaced.id?.slice(0, 8).toUpperCase()}</p>
             <p style={{ background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '30px', fontWeight: 800, marginBottom: '16px' }}>
-              ₹{Number(orderPlaced.totalAmount).toFixed(0)}
+              ₹{Number(orderPlaced.totalAmount - (orderPlaced.discountAmount || 0)).toFixed(0)}
             </p>
             <p style={{ color: '#7a5f58', fontSize: '13px', marginBottom: '14px' }}>
               ⏱️ Estimated wait: <span style={{ color: '#ffd166', fontWeight: 600 }}>15–20 mins</span>
@@ -880,32 +1022,39 @@ export default function CartDrawer() {
                 Your food is being prepared with love. Want to explore more while you wait?
               </p>
             </div>
-            <button onClick={() => { window.open(`/track/${orderPlaced.id}`, '_blank') }}
-            style={{
-               width: '100%', marginBottom: '10px',
-               background: 'rgba(255,107,53,0.1)', 
-               border: '1px solid rgba(255,107,53,0.3)',
-               color: '#ff8c69', padding: '12px', borderRadius: '14px',
-               fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-               }}>📍 Track My Order</button>
+            <button 
+              onClick={() => { window.open(`/track/${orderPlaced.id}`, '_blank') }}
+              style={{
+                width: '100%', marginBottom: '10px',
+                background: 'rgba(255,107,53,0.1)', 
+                border: '1px solid rgba(255,107,53,0.3)',
+                color: '#ff8c69', padding: '12px', borderRadius: '14px',
+                fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+              }}
+            >📍 Track My Order</button>
 
-               {/* Download Bill button */}
-               <button
-               onClick={() => downloadBill(orderPlaced)}
-               style={{width: '100%', marginBottom: '10px',
+            {/* Download Bill button */}
+            <button
+              onClick={() => downloadBill(orderPlaced)}
+              style={{
+                width: '100%', marginBottom: '10px',
                 background: 'rgba(74,222,128,0.1)',
                 border: '1px solid rgba(74,222,128,0.25)',
                 color: '#4ade80', padding: '13px', borderRadius: '14px',
                 fontSize: '14px', fontWeight: 600, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                }}>📄 Download Bill (PDF)</button>
+              }}
+            >📄 Download Bill (PDF)</button>
 
-            <button onClick={() => setOrderPlaced(null)} style={{
-              width: '100%', marginBottom: '10px',
-              background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
-              border: 'none', color: '#fff', padding: '15px', borderRadius: '14px',
-              fontSize: '15px', fontWeight: 700, cursor: 'pointer',
-            }}>🍽️ Explore More Menu</button>
+            <button 
+              onClick={() => setOrderPlaced(null)} 
+              style={{
+                width: '100%', marginBottom: '10px',
+                background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                border: 'none', color: '#fff', padding: '15px', borderRadius: '14px',
+                fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+              }}
+            >🍽️ Explore More Menu</button>
             {orderPlaced.status === 'pending' && (
               <button
                 onClick={() => cancelOrder(orderPlaced.id)}
@@ -919,10 +1068,13 @@ export default function CartDrawer() {
                 }}
               >{cancelling ? 'Cancelling...' : '✕ Cancel Order'}</button>
             )}
-            <button onClick={() => setOrderPlaced(null)} style={{
-              width: '100%', background: 'transparent', border: 'none',
-              color: '#7a5f58', padding: '8px', cursor: 'pointer', fontSize: '13px',
-            }}>Close</button>
+            <button 
+              onClick={() => setOrderPlaced(null)} 
+              style={{
+                width: '100%', background: 'transparent', border: 'none',
+                color: '#7a5f58', padding: '8px', cursor: 'pointer', fontSize: '13px',
+              }}
+            >Close</button>
 
           </div>
         </div>
