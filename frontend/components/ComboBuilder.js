@@ -7,6 +7,7 @@ import { useStore } from '@/lib/store'
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export default function ComboBuilder({ sessionId }) {
+  const [error, setError] = useState(null)
   const [open, setOpen] = useState(false)
   const [budget, setBudget] = useState(500)
   const [preference, setPreference] = useState('both')
@@ -14,20 +15,35 @@ export default function ComboBuilder({ sessionId }) {
   const [loading, setLoading] = useState(false)
   const { addToCart, session } = useStore()
 
-  async function buildCombo() {
-    setLoading(true)
-    setCombo(null)
+async function buildCombo() {
+  setLoading(true)
+  setCombo(null)
+  setError(null)
+
+  // Try up to 2 times
+  for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const { data } = await axios.post(
         `${API}/api/session/${sessionId}/ai/combo`,
         { budget, preference }
       )
-      setCombo(data)
+      if (data.items?.length > 0) {
+        setCombo(data)
+        break
+      }
+      if (attempt === 1) {
+        await new Promise(r => setTimeout(r, 2000))
+      }
     } catch (e) {
-      console.error(e)
+      if (attempt === 2) {
+        setError('Could not generate combo. Please try again.')
+      } else {
+        await new Promise(r => setTimeout(r, 2000))
+      }
     }
-    setLoading(false)
   }
+  setLoading(false)
+}
 
   async function addAllToCart() {
     if (!combo || !session?.id) return
@@ -177,6 +193,11 @@ export default function ComboBuilder({ sessionId }) {
             >
               {loading ? '🤖 Zara is thinking...' : '✨ Build My Combo'}
             </button>
+            {error && (
+              <p style={{ color: '#ff6b6b', fontSize: '13px', textAlign: 'center', marginTop: '8px' }}>
+                ⚠ {error}
+                </p>
+              )}
 
             {/* Combo result */}
             {combo && (

@@ -30,6 +30,7 @@ router.post('/:sessionId/ai/chat', async (req, res) => {
 })
 router.post('/:sessionId/ai/combo', async (req, res) => {
   try {
+    await ensureEmbeddings()
     const { budget, preference } = req.body
     const { sessionId } = req.params
 
