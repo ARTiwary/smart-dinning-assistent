@@ -36,6 +36,12 @@ export default function CartDrawer() {
   const [coupon, setCoupon] = useState(null)
   const [couponError, setCouponError] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
+
+  // Loyalty states
+  const [loyaltyAccount, setLoyaltyAccount] = useState(null)
+  const [redeemPoints, setRedeemPoints] = useState(0)
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0)
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false)
   
   useEffect(() => {
     if (session?.id) fetchCart(session.id)
@@ -45,7 +51,10 @@ export default function CartDrawer() {
   useEffect(() => {
     const savedPhone = localStorage.getItem('customerPhone')
     const savedName = localStorage.getItem('customerName')
-    if (savedPhone) setPhone(savedPhone)
+    if (savedPhone) {
+      setPhone(savedPhone)
+      if (savedPhone.length === 10) fetchLoyalty(savedPhone)
+    }
     if (savedName) setName(savedName)
   }, [])
 
@@ -56,7 +65,20 @@ export default function CartDrawer() {
 
   const tax = subtotal * 0.05
   const total = subtotal + tax
+  const finalTotal = total - (coupon?.discount || 0) - loyaltyDiscount
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0)
+
+  async function fetchLoyalty(phone) {
+    if (!/^[6-9]\d{9}$/.test(phone)) return
+    try {
+      setLoyaltyLoading(true)
+      const { data } = await axios.get(`${API}/api/loyalty/${phone}`)
+      setLoyaltyAccount(data)
+    } catch (e) {
+    } finally {
+      setLoyaltyLoading(false)
+    }
+  }
 
   async function sendOtp() {
     const e = {}
@@ -109,8 +131,15 @@ export default function CartDrawer() {
         customerName: name, 
         customerPhone: phone,
         couponCode: coupon?.code,
-        discountAmount: coupon?.discount || 0
+        discountAmount: (coupon?.discount || 0) + loyaltyDiscount
       })
+
+      // Redeem loyalty points
+      if (redeemPoints > 0) {
+        await axios.post(`${API}/api/loyalty/redeem/verify`, {
+          phone, points: redeemPoints
+        })
+      }
 
       // Apply coupon usage
       if (coupon) {
@@ -121,7 +150,7 @@ export default function CartDrawer() {
       localStorage.setItem('customerPhone', phone)
       localStorage.setItem('customerName', name)
 
-      setOrderPlaced({ ...order, discountAmount: coupon?.discount || 0 })
+      setOrderPlaced({ ...order, discountAmount: (coupon?.discount || 0) + loyaltyDiscount })
       setCheckoutOpen(false)
       setCartOpen(false)
       setOtp('')
@@ -129,6 +158,8 @@ export default function CartDrawer() {
       setErrors({})
       setCoupon(null)
       setCouponCode('')
+      setRedeemPoints(0)
+      setLoyaltyDiscount(0)
       setCart([])
     } catch (e) {
       setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
@@ -778,7 +809,7 @@ export default function CartDrawer() {
             >
               Total:{' '}
               <span style={{ color: '#ff8c69', fontWeight: 700 }}>
-                ₹{coupon ? (total - coupon.discount).toFixed(0) : total.toFixed(0)}
+                ₹{finalTotal.toFixed(0)}
               </span>
             </p>
             {errors.general && (
@@ -811,9 +842,11 @@ export default function CartDrawer() {
               type="tel"
               placeholder="Phone number"
               value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value)
+              onChange={e => {
+                const val = e.target.value
+                setPhone(val)
                 setErrors(p => ({ ...p, phone: '' }))
+                if (val.length === 10) fetchLoyalty(val)
               }}
               style={inputStyle(!!errors.phone)}
             />
@@ -885,8 +918,73 @@ export default function CartDrawer() {
               </div>
             )}
 
-            {/* Updated total with discount */}
-            {coupon && (
+            {/* Loyalty Points */}
+            {loyaltyAccount && loyaltyAccount.points >= (loyaltyAccount.minRedeem || 50) && !otpSent && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,170,64,0.06))',
+                border: '1px solid rgba(255,215,0,0.2)',
+                borderRadius: '14px', padding: '14px', marginBottom: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div>
+                    <p style={{ color: '#ffd166', fontSize: '14px', fontWeight: 700, margin: 0 }}>
+                      💎 {loyaltyAccount.points} Points Available
+                    </p>
+                    <p style={{ color: '#7a5f58', fontSize: '11px', margin: '2px 0 0' }}>
+                      1 point = ₹{loyaltyAccount.pointValue || 0.5}
+                    </p>
+                  </div>
+                  {loyaltyDiscount > 0 && (
+                    <span style={{
+                      background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.3)',
+                      color: '#ffd166', fontSize: '13px', fontWeight: 700,
+                      padding: '4px 10px', borderRadius: '8px'
+                    }}>-₹{loyaltyDiscount.toFixed(0)}</span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.min(loyaltyAccount.points, Math.floor(total / (loyaltyAccount.pointValue || 0.5)))}
+                    step="10"
+                    value={redeemPoints}
+                    onChange={e => {
+                      const pts = Number(e.target.value)
+                      setRedeemPoints(pts)
+                      setLoyaltyDiscount(pts * (loyaltyAccount.pointValue || 0.5))
+                    }}
+                    style={{ flex: 1, accentColor: '#ffd166' }}
+                  />
+                  <span style={{ color: '#ffd166', fontSize: '13px', fontWeight: 700, minWidth: '60px' }}>
+                    {redeemPoints} pts
+                  </span>
+                </div>
+
+                {redeemPoints > 0 && (
+                  <p style={{ color: '#888', fontSize: '11px', marginTop: '6px' }}>
+                    Using {redeemPoints} points for ₹{loyaltyDiscount.toFixed(0)} discount
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Show points to be earned */}
+            {phone.length === 10 && !loyaltyAccount && (
+              <p style={{ color: '#7a5f58', fontSize: '11px', marginBottom: '10px' }}>
+                💎 You'll earn ~{Math.floor(total * 0.1)} points from this order!
+              </p>
+            )}
+
+            {loyaltyAccount && redeemPoints === 0 && (
+              <p style={{ color: '#7a5f58', fontSize: '11px', marginBottom: '10px' }}>
+                💎 You'll earn ~{Math.floor((total - (coupon?.discount || 0)) * 0.1)} more points!
+              </p>
+            )}
+
+            {/* Updated total with discount and loyalty */}
+            {(coupon || loyaltyDiscount > 0) && (
               <div style={{
                 background: 'rgba(255,107,53,0.06)',
                 border: '1px solid rgba(255,107,53,0.15)',
@@ -895,15 +993,23 @@ export default function CartDrawer() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7a5f58', fontSize: '12px', marginBottom: '4px' }}>
                   <span>Original total</span><span>₹{total.toFixed(0)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4ade80', fontSize: '12px', marginBottom: '4px' }}>
-                  <span>Discount</span><span>-₹{coupon.discount.toFixed(0)}</span>
-                </div>
+                {coupon && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4ade80', fontSize: '12px', marginBottom: '4px' }}>
+                    <span>Coupon ({coupon.code})</span><span>-₹{coupon.discount.toFixed(0)}</span>
+                  </div>
+                )}
+                {loyaltyDiscount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ffd166', fontSize: '12px', marginBottom: '4px' }}>
+                    <span>💎 Loyalty ({redeemPoints} pts)</span>
+                    <span>-₹{loyaltyDiscount.toFixed(0)}</span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fff5f0', fontSize: '14px', fontWeight: 700 }}>
                   <span>Final total</span>
                   <span style={{
                     background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
                     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-                  }}>₹{(total - coupon.discount).toFixed(0)}</span>
+                  }}>₹{finalTotal.toFixed(0)}</span>
                 </div>
               </div>
             )}

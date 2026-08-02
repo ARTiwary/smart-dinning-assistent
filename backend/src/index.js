@@ -130,6 +130,36 @@ app.post('/api/coupon/apply', async (req, res) => {
   }
 })
 
+// Get loyalty account
+app.get('/api/loyalty/:phone', async (req, res) => {
+  try {
+    const { getAccount, POINT_VALUE, MIN_REDEEM } = await import('./src/services/loyaltyService.js')
+    const account = await getAccount(req.params.phone)
+    res.json({ ...account, pointValue: POINT_VALUE, minRedeem: MIN_REDEEM })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Verify redemption
+app.post('/api/loyalty/redeem/verify', async (req, res) => {
+  const { phone, points } = req.body
+  try {
+    const { getAccount, POINT_VALUE, MIN_REDEEM } = await import('./src/services/loyaltyService.js')
+    const account = await getAccount(phone)
+    if (!account || account.points < MIN_REDEEM) {
+      return res.status(400).json({ error: `Need at least ${MIN_REDEEM} points to redeem` })
+    }
+    if (account.points < points) {
+      return res.status(400).json({ error: 'Insufficient points' })
+    }
+    const discount = points * POINT_VALUE
+    res.json({ valid: true, discount, points, balance: account.points })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 setupSocketHandlers(io)
 
 const PORT = process.env.PORT || 4000

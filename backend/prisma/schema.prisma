@@ -98,3 +98,25 @@ model Coupon {
   expiresAt   DateTime?
   createdAt   DateTime @default(now())
 }
+
+model LoyaltyAccount {
+  id          String   @id @default(uuid())
+  phone       String   @unique
+  points      Int      @default(0)
+  totalEarned Int      @default(0)
+  totalRedeemed Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  transactions LoyaltyTransaction[]
+}
+
+model LoyaltyTransaction {
+  id        String   @id @default(uuid())
+  phone     String
+  points    Int
+  type      String   // earned | redeemed
+  orderId   String?
+  note      String?
+  createdAt DateTime @default(now())
+  account   LoyaltyAccount @relation(fields: [phone], references: [phone])
+}

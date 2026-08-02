@@ -25,6 +25,7 @@ export default function AdminPanel() {
   const [tab, setTab] = useState('dashboard')
   const [orders, setOrders] = useState([])
   const [stats, setStats] = useState(null)
+  const [loyaltyStats, setLoyaltyStats] = useState(null)
   const [tables, setTables] = useState([])
   const [menuItems, setMenuItems] = useState([])
   const [coupons, setCoupons] = useState([])
@@ -50,14 +51,16 @@ export default function AdminPanel() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [ordersRes, statsRes, tablesRes] = await Promise.all([
+      const [ordersRes, statsRes, tablesRes, loyaltyRes] = await Promise.all([
         axios.get(`${API}/api/admin/orders`, { headers }),
         axios.get(`${API}/api/admin/stats`, { headers }),
         axios.get(`${API}/api/admin/tables`, { headers }),
+        axios.get(`${API}/api/admin/loyalty/stats`, { headers }),
       ])
       setOrders(ordersRes.data)
       setStats(statsRes.data)
       setTables(tablesRes.data)
+      setLoyaltyStats(loyaltyRes.data)
     } catch (e) {
       console.error(e)
     } finally {
@@ -148,10 +151,11 @@ export default function AdminPanel() {
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '4px', padding: '16px 24px 0', borderBottom: '1px solid rgba(255,107,53,0.1)' }}>
+      <div style={{ display: 'flex', gap: '4px', padding: '16px 24px 0', borderBottom: '1px solid rgba(255,107,53,0.1)', overflowX: 'auto' }}>
         {[
           { id: 'dashboard', label: '📊 Dashboard' },
           { id: 'analytics', label: '📈 Analytics' },
+          { id: 'loyalty', label: '💎 Loyalty' },
           { id: 'orders', label: '🧾 Orders' },
           { id: 'tables', label: '🪑 Tables & QR' },
           { id: 'menu', label: '🍽️ Menu' },
@@ -163,6 +167,7 @@ export default function AdminPanel() {
             background: tab === t.id ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)' : 'transparent',
             color: tab === t.id ? '#fff' : '#7a5f58',
             borderRadius: '10px 10px 0 0',
+            whiteSpace: 'nowrap',
             borderBottom: tab === t.id ? 'none' : '2px solid transparent',
           }}>{t.label}</button>
         ))}
@@ -177,8 +182,9 @@ export default function AdminPanel() {
           </div>
         ) : (
           <>
-            {tab === 'dashboard' && <Dashboard stats={stats} orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
+            {tab === 'dashboard' && <Dashboard stats={stats} loyaltyStats={loyaltyStats} orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
             {tab === 'analytics' && <Analytics orders={orders} stats={stats} />}
+            {tab === 'loyalty' && <LoyaltyView loyaltyStats={loyaltyStats} />}
             {tab === 'orders' && <Orders orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
             {tab === 'tables' && <Tables tables={tables} tableCount={tableCount} setTableCount={setTableCount} qrMap={qrMap} onGenerateQR={generateQR} onCloseTable={closeTable} />}
             {tab === 'menu' && (
@@ -196,6 +202,130 @@ export default function AdminPanel() {
       {/* Order detail modal */}
       {selectedOrder && (
         <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatusChange={updateStatus} />
+      )}
+    </div>
+  )
+}
+
+function LoyaltyView({ loyaltyStats }) {
+  if (!loyaltyStats) return null
+
+  return (
+    <div>
+      <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, marginBottom: '20px' }}>
+        💎 Customer Loyalty Overview
+      </h3>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '16px', marginBottom: '28px'
+      }}>
+        <div style={{
+          background: 'linear-gradient(145deg, #1a1220, #201628)',
+          border: '1px solid rgba(255,209,102,0.3)',
+          borderRadius: '16px', padding: '20px'
+        }}>
+          <p style={{ color: '#7a5f58', fontSize: '12px', margin: '0 0 6px' }}>Total Active Points</p>
+          <p style={{ color: '#ffd166', fontSize: '28px', fontWeight: 800, margin: 0 }}>
+            {loyaltyStats.totalPoints?.points || 0}
+          </p>
+        </div>
+
+        <div style={{
+          background: 'linear-gradient(145deg, #1a1220, #201628)',
+          border: '1px solid rgba(74,222,128,0.3)',
+          borderRadius: '16px', padding: '20px'
+        }}>
+          <p style={{ color: '#7a5f58', fontSize: '12px', margin: '0 0 6px' }}>Lifetime Points Earned</p>
+          <p style={{ color: '#4ade80', fontSize: '28px', fontWeight: 800, margin: 0 }}>
+            {loyaltyStats.totalPoints?.totalEarned || 0}
+          </p>
+        </div>
+      </div>
+
+      <div style={{
+        background: 'linear-gradient(145deg, #1a1220, #201628)',
+        border: '1px solid rgba(255,107,53,0.15)',
+        borderRadius: '16px', padding: '20px'
+      }}>
+        <h4 style={{ color: '#fff5f0', fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>
+          🏆 Top Loyalty Members
+        </h4>
+
+        {(!loyaltyStats.topAccounts || loyaltyStats.topAccounts.length === 0) ? (
+          <p style={{ color: '#7a5f58', fontSize: '13px' }}>No loyalty accounts found.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {loyaltyStats.topAccounts.map((acc, index) => (
+              <div key={acc.id || index} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '12px 16px', background: 'rgba(255,255,255,0.03)',
+                borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)'
+              }}>
+                <div>
+                  <p style={{ color: '#fff5f0', fontWeight: 700, fontSize: '14px', margin: '0 0 2px' }}>
+                    {acc.phone || `Customer #${index + 1}`}
+                  </p>
+                  <p style={{ color: '#7a5f58', fontSize: '12px', margin: 0 }}>
+                    Lifetime Earned: {acc.totalEarned || 0} pts
+                  </p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    color: '#ffd166', fontWeight: 800, fontSize: '16px',
+                    background: 'rgba(255,209,102,0.1)', padding: '4px 10px', borderRadius: '8px'
+                  }}>
+                    {acc.points || 0} pts
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Dashboard({ stats, loyaltyStats, orders, onStatusChange, onSelectOrder }) {
+  const pending = orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status))
+
+  return (
+    <div>
+      <div className="admin-stats-grid"
+       style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+        {[
+          { label: "Today's Orders", value: stats?.todayOrders || 0, icon: '📦', color: '#ff6b35' },
+          { label: 'Active Orders', value: stats?.pendingOrders || 0, icon: '🔥', color: '#ff6b9d' },
+          { label: 'Total Orders', value: stats?.totalOrders || 0, icon: '🧾', color: '#c44dff' },
+          { label: 'Total Revenue', value: `₹${Number(stats?.totalRevenue || 0).toFixed(0)}`, icon: '💰', color: '#4ade80' },
+          { label: 'Loyalty Points Issued', value: loyaltyStats?.totalPoints?.totalEarned || 0, icon: '💎', color: '#ffd166' },
+        ].map(s => (
+          <div key={s.label} style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: `1px solid ${s.color}30`,
+            borderRadius: '16px', padding: '20px',
+          }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>{s.icon}</div>
+            <p style={{ color: s.color, fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{s.value}</p>
+            <p style={{ color: '#7a5f58', fontSize: '12px' }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: '#fff5f0', marginBottom: '16px' }}>
+        🔥 Active Orders ({pending.length})
+      </h3>
+      {pending.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#7a5f58' }}>
+          <p style={{ fontSize: '32px', marginBottom: '8px' }}>✅</p>
+          <p>All orders fulfilled!</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {pending.map(order => <OrderCard key={order.id} order={order} compact />)}
+        </div>
       )}
     </div>
   )
@@ -636,48 +766,6 @@ function LoginScreen({ password, setPassword, onLogin }) {
         }}>Login →</button>
         <p style={{ color: '#7a5f58', fontSize: '11px', marginTop: '12px' }}>Default password: admin123</p>
       </div>
-    </div>
-  )
-}
-
-function Dashboard({ stats, orders, onStatusChange, onSelectOrder }) {
-  const pending = orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status))
-
-  return (
-    <div>
-      <div className="admin-stats-grid"
-       style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        {[
-          { label: "Today's Orders", value: stats?.todayOrders || 0, icon: '📦', color: '#ff6b35' },
-          { label: 'Active Orders', value: stats?.pendingOrders || 0, icon: '🔥', color: '#ff6b9d' },
-          { label: 'Total Orders', value: stats?.totalOrders || 0, icon: '🧾', color: '#c44dff' },
-          { label: 'Total Revenue', value: `₹${Number(stats?.totalRevenue || 0).toFixed(0)}`, icon: '💰', color: '#4ade80' },
-        ].map(s => (
-          <div key={s.label} style={{
-            background: 'linear-gradient(145deg, #1a1220, #201628)',
-            border: `1px solid ${s.color}30`,
-            borderRadius: '16px', padding: '20px',
-          }}>
-            <div style={{ fontSize: '28px', marginBottom: '8px' }}>{s.icon}</div>
-            <p style={{ color: s.color, fontSize: '24px', fontWeight: 800, marginBottom: '4px' }}>{s.value}</p>
-            <p style={{ color: '#7a5f58', fontSize: '12px' }}>{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: '#fff5f0', marginBottom: '16px' }}>
-        🔥 Active Orders ({pending.length})
-      </h3>
-      {pending.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#7a5f58' }}>
-          <p style={{ fontSize: '32px', marginBottom: '8px' }}>✅</p>
-          <p>All orders fulfilled!</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {pending.map(order => <OrderCard key={order.id} order={order} compact />)}
-        </div>
-      )}
     </div>
   )
 }

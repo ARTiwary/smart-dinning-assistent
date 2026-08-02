@@ -52,6 +52,10 @@ router.patch('/orders/:id/status', adminAuth, async (req, res) => {
     data: { status },
     include: { session: true },
   });
+  // Notify customer
+  io.to(`table:${order.session.tableId}`).emit('order:status_update', {
+    orderId: order.id, status
+  });
   res.json(order);
 });
 
@@ -121,19 +125,6 @@ router.patch('/kitchen/orders/:id/ready', adminAuth, async (req, res) => {
   io.to(`table:${order.session.tableId}`).emit('order:ready', {
     orderId: order.id,
     message: '🎉 Your order is ready! Please collect it.'
-  })
-  res.json(order)
-})
-router.patch('/orders/:id/status', adminAuth, async (req, res) => {
-  const { status } = req.body
-  const order = await prisma.order.update({
-    where: { id: req.params.id },
-    data: { status },
-    include: { session: true }
-  })
-  // Notify customer
-  io.to(`table:${order.session.tableId}`).emit('order:status_update', {
-    orderId: order.id, status
   })
   res.json(order)
 })
@@ -221,6 +212,18 @@ router.patch('/coupons/:id/toggle', adminAuth, async (req, res) => {
     data: { active: !coupon.active }
   })
   res.json(updated)
+})
+
+// Loyalty stats
+router.get('/loyalty/stats', adminAuth, async (req, res) => {
+  const accounts = await prisma.loyaltyAccount.findMany({
+    orderBy: { points: 'desc' },
+    take: 10
+  })
+  const totalPoints = await prisma.loyaltyAccount.aggregate({
+    _sum: { points: true, totalEarned: true }
+  })
+  res.json({ topAccounts: accounts, totalPoints: totalPoints._sum })
 })
 
 export default router;
