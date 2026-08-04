@@ -9,6 +9,7 @@ import AIChat from '@/components/AIChat'
 import GroupBanner from '@/components/GroupBanner'
 import { useStore } from '@/lib/store'
 import ComboBuilder from '@/components/ComboBuilder'
+import InstallPrompt from '@/components/InstallPrompt'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -130,6 +131,9 @@ export default function TablePage() {
       <HeroSection sessionId={session?.id} />
       <MenuGrid />
       <AIChat sessionId={session?.id} tableId={tableId} />
+
+      {/* Placed at root table level */}
+      <InstallPrompt />
     </div>
   )
 }
@@ -139,41 +143,41 @@ function HeroSection({ sessionId }) {
   const { addToCart, session, menu, setCartOpen } = useStore()
 
   useEffect(() => {
-  if (!sessionId) return
-  async function fetchPicks() {
-    // Wait 3 seconds for embeddings to initialize
-    await new Promise(r => setTimeout(r, 3000))
-    try {
-      const { data } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
-        message: 'show me your best sellers', isFirstMessage: false
-      })
-      if (data.suggestions?.length > 0) {
-        setPicks(data.suggestions)
-      } else {
-        // Retry once after 3 more seconds
+    if (!sessionId) return
+    async function fetchPicks() {
+      // Wait 3 seconds for embeddings to initialize
+      await new Promise(r => setTimeout(r, 3000))
+      try {
+        const { data } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
+          message: 'show me your best sellers', isFirstMessage: false
+        })
+        if (data.suggestions?.length > 0) {
+          setPicks(data.suggestions)
+        } else {
+          // Retry once after 3 more seconds
+          setTimeout(async () => {
+            try {
+              const { data: data2 } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
+                message: 'show me your best sellers', isFirstMessage: false
+              })
+              if (data2.suggestions?.length > 0) setPicks(data2.suggestions)
+            } catch (e) {}
+          }, 3000)
+        }
+      } catch (e) {
+        // Retry on error
         setTimeout(async () => {
           try {
-            const { data: data2 } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
-              message: 'show me your best sellers', isFirstMessage: false
+            const { data } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
+              message: 'show me best sellers popular items', isFirstMessage: false
             })
-            if (data2.suggestions?.length > 0) setPicks(data2.suggestions)
+            if (data.suggestions?.length > 0) setPicks(data.suggestions)
           } catch (e) {}
-        }, 3000)
+        }, 5000)
       }
-    } catch (e) {
-      // Retry on error
-      setTimeout(async () => {
-        try {
-          const { data } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
-            message: 'show me best sellers popular items', isFirstMessage: false
-          })
-          if (data.suggestions?.length > 0) setPicks(data.suggestions)
-        } catch (e) {}
-      }, 5000)
     }
-  }
-  fetchPicks()
-}, [sessionId])
+    fetchPicks()
+  }, [sessionId])
 
   function handleAdd(item) {
     if (!session?.id) return

@@ -1,0 +1,37 @@
+{
+  "name": "Spice Garden — AI Dining",
+  "short_name": "Spice Garden",
+  "description": "AI-powered smart dining assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0a0f",
+  "theme_color": "#ff6b35",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["food", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Table T1",
+      "url": "/table/T1",
+      "description": "Open Table T1"
+    },
+    {
+      "name": "Admin Panel",
+      "url": "/admin",
+      "description": "Open Admin Dashboard"
+    }
+  ]
+}
