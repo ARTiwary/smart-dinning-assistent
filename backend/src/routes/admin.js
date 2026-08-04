@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { redis } from '../lib/redis.js';
 import { io } from '../index.js'
+import { upload, cloudinary } from '../lib/cloudinary.js'
 
 const router = Router();
 
@@ -224,6 +225,29 @@ router.get('/loyalty/stats', adminAuth, async (req, res) => {
     _sum: { points: true, totalEarned: true }
   })
   res.json({ topAccounts: accounts, totalPoints: totalPoints._sum })
+})
+
+// Upload menu item image
+router.post('/menu/upload-image', adminAuth, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+    res.json({
+      imageUrl: req.file.path,
+      publicId: req.file.filename
+    })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Delete image from cloudinary
+router.delete('/menu/image/:publicId', adminAuth, async (req, res) => {
+  try {
+    await cloudinary.uploader.destroy(req.params.publicId)
+    res.json({ success: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 export default router;

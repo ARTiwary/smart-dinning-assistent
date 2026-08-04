@@ -1235,18 +1235,46 @@ function MenuItemModal({ item, headers, onClose, onSave }) {
     price: item?.price || '',
     description: item?.description || '',
     imageUrl: item?.imageUrl || '',
+    publicId: item?.publicId || '',
     tags: item?.tags?.join(', ') || '',
     allergens: item?.allergens?.join(', ') || '',
     available: item?.available ?? true,
     popularScore: item?.popularScore || 0.5,
   })
   const [loading, setLoading] = useState(false)
+  const [uploadLoading, setUploadLoading] = useState(false)
 
   const CATEGORIES = [
     'Veg Starters', 'Non-Veg Starters', 'Mains (Veg)',
     'Mains (Non-Veg)', 'Breads & Rice', 'Desserts',
     'Beverages (Hot)', 'Beverages (Cold)', 'Combos & Deals'
   ]
+
+  async function handleImageUpload(e) {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setUploadLoading(true)
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      const { data } = await axios.post(
+        `${API}/api/admin/menu/upload-image`,
+        formData,
+        {
+          headers: {
+            ...headers,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      )
+      setForm(p => ({ ...p, imageUrl: data.imageUrl, publicId: data.publicId }))
+    } catch (e) {
+      alert('Upload failed: ' + (e.response?.data?.error || e.message))
+    }
+    setUploadLoading(false)
+  }
 
   async function save() {
     if (!form.name || !form.price) return alert('Name and price are required')
@@ -1317,9 +1345,70 @@ function MenuItemModal({ item, headers, onClose, onSave }) {
           maxLength={120}
           style={{ ...inputStyle, minHeight: '70px', resize: 'vertical' }} />
 
-        <input placeholder="Image URL" value={form.imageUrl}
-          onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))}
-          style={inputStyle} />
+        {/* Image upload */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ color: '#c8a49a', fontSize: '13px', display: 'block', marginBottom: '8px' }}>
+            Food Image
+          </label>
+
+          {/* Preview */}
+          {form.imageUrl && (
+            <div style={{
+              width: '100%', height: '160px',
+              borderRadius: '12px', overflow: 'hidden',
+              marginBottom: '10px', position: 'relative',
+              background: 'rgba(255,107,53,0.08)'
+            }}>
+              <img
+                src={form.imageUrl}
+                alt="preview"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              <button
+                onClick={() => setForm(p => ({ ...p, imageUrl: '', publicId: '' }))}
+                style={{
+                  position: 'absolute', top: '8px', right: '8px',
+                  background: 'rgba(0,0,0,0.6)', border: 'none',
+                  color: '#fff', borderRadius: '50%',
+                  width: '28px', height: '28px',
+                  cursor: 'pointer', fontSize: '14px'
+                }}
+              >✕</button>
+            </div>
+          )}
+
+          {/* Upload button */}
+          {!form.imageUrl && (
+            <label style={{
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              height: '120px', borderRadius: '12px',
+              border: '2px dashed rgba(255,107,53,0.3)',
+              cursor: 'pointer', marginBottom: '10px',
+              background: 'rgba(255,107,53,0.04)',
+              transition: 'border-color 0.2s'
+            }}>
+              <span style={{ fontSize: '32px', marginBottom: '8px' }}>📸</span>
+              <span style={{ color: '#7a5f58', fontSize: '13px' }}>
+                {uploadLoading ? 'Uploading...' : 'Click to upload image'}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleImageUpload}
+              />
+            </label>
+          )}
+
+          {/* Or URL input */}
+          <input
+            placeholder="Or paste image URL"
+            value={form.imageUrl}
+            onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))}
+            style={inputStyle}
+          />
+        </div>
 
         <input placeholder="Tags (comma separated: spicy, veg, bestseller)"
           value={form.tags}
