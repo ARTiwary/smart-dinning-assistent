@@ -143,41 +143,27 @@ function HeroSection({ sessionId }) {
   const { addToCart, session, menu, setCartOpen } = useStore()
 
   useEffect(() => {
-    if (!sessionId) return
-    async function fetchPicks() {
-      // Wait 3 seconds for embeddings to initialize
-      await new Promise(r => setTimeout(r, 3000))
+  if (!sessionId) return
+
+  async function fetchPicks() {
+    await new Promise(r => setTimeout(r, 3000))
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const { data } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
-          message: 'show me your best sellers', isFirstMessage: false
-        })
+        const { data } = await axios.post(
+          `${API}/api/session/${sessionId}/ai/chat`,
+          { message: 'show me best sellers popular items', isFirstMessage: false }
+        )
         if (data.suggestions?.length > 0) {
           setPicks(data.suggestions)
-        } else {
-          // Retry once after 3 more seconds
-          setTimeout(async () => {
-            try {
-              const { data: data2 } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
-                message: 'show me your best sellers', isFirstMessage: false
-              })
-              if (data2.suggestions?.length > 0) setPicks(data2.suggestions)
-            } catch (e) {}
-          }, 3000)
+          return
         }
-      } catch (e) {
-        // Retry on error
-        setTimeout(async () => {
-          try {
-            const { data } = await axios.post(`${API}/api/session/${sessionId}/ai/chat`, {
-              message: 'show me best sellers popular items', isFirstMessage: false
-            })
-            if (data.suggestions?.length > 0) setPicks(data.suggestions)
-          } catch (e) {}
-        }, 5000)
-      }
+      } catch (e) {}
+      if (attempt < 3) await new Promise(r => setTimeout(r, 5000))
     }
-    fetchPicks()
-  }, [sessionId])
+  }
+
+  fetchPicks()
+}, [sessionId])
 
   function handleAdd(item) {
     if (!session?.id) return

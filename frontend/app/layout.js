@@ -4,18 +4,14 @@ export const metadata = {
   title: 'Spice Garden — AI Dining',
   description: 'AI-powered smart dining assistant',
   manifest: '/manifest.json',
+}
+
+export const viewport = {
   themeColor: '#ff6b35',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'Spice Garden'
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false
-  }
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({ children }) {
