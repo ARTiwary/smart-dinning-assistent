@@ -19,6 +19,7 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {},
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
@@ -27,4 +28,4 @@ const nextConfig = {
   }
 }
 
-export default withPWA(nextConfig)
+export default nextConfig
