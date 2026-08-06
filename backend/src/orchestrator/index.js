@@ -11,13 +11,13 @@ import { prisma } from '../db/prisma.js';
 
 function getTimeOfDay() {
   // Use IST (UTC+5:30)
-  const now = new Date()
-  const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
-  const hour = ist.getUTCHours()
-  if (hour >= 7 && hour < 12) return 'Morning'
-  if (hour >= 12 && hour < 16) return 'Afternoon'
-  if (hour >= 16 && hour < 19) return 'Evening'
-  return 'Dinner'
+  const now = new Date();
+  const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+  const hour = ist.getUTCHours();
+  if (hour >= 7 && hour < 12) return 'Morning';
+  if (hour >= 12 && hour < 16) return 'Afternoon';
+  if (hour >= 16 && hour < 19) return 'Evening';
+  return 'Dinner';
 }
 
 export async function orchestrate(sessionId, userMessage, isFirstMessage = false) {
@@ -39,14 +39,16 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
   const cartTotal = await getCartTotal(sessionId);
 
   // Get cross-session memory if phone available
-  let profileMemory = null
+  let profileMemory = null;
   try {
-    const session = await prisma.session.findUnique({ where: { id: sessionId } })
+    const session = await prisma.session.findUnique({ where: { id: sessionId } });
     if (session?.customerPhone) {
-      const { getProfileMemory } = await import('../services/customerService.js')
-      profileMemory = await getProfileMemory(session.customerPhone)
+      const { getProfileMemory } = await import('../services/customerService.js');
+      profileMemory = await getProfileMemory(session.customerPhone);
     }
-  } catch (e) {}
+  } catch (e) {
+    // Fail gracefully
+  }
 
   // Step 4: Sentiment check (background)
   const sentiment = await sentimentAgent(userMessage);
@@ -66,7 +68,7 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
       };
       break;
 
-    case 'CHECKOUT':
+    case 'CHECKOUT': {
       const validation = await orderValidationAgent(sessionId);
       response = {
         type: 'checkout',
@@ -77,8 +79,9 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
         suggestions: []
       };
       break;
+    }
 
-    case 'GROUP_MERGE':
+    case 'GROUP_MERGE': {
       const groupResp = await groupCoordinatorAgent(cartItems, nlu.groupSize, null);
       response = {
         type: 'group',
@@ -86,19 +89,26 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
         suggestions: []
       };
       break;
+    }
 
     case 'RECOMMEND':
     case 'ADD_ITEM':
     case 'FALLBACK':
-    default:
+    default: {
+      // Extract budget specifically from user message (e.g., "under 500", "rs 800", "₹400")
+      const budgetMatches = userMessage.match(/(?:₹|rs\.?|rupees?|under|below|budget|around)?\s*(\d{3,4})/gi);
+      const numbers = budgetMatches ? budgetMatches.map(b => parseInt(b.replace(/[^\d]/g, ''), 10)).filter(Boolean) : [];
+      const detectedBudget = numbers.length > 0 ? Math.max(...numbers) : null;
+
       const recResult = await recommendationAgent(
         userMessage,
-        { ...context.preferences, ...nlu.preferences },
+        { ...context.preferences, ...nlu.preferences, budget: detectedBudget },
         cartItems,
         { ...context.preferences, ...(profileMemory?.preferences || {}) },
         timeOfDay,
         profileMemory
       );
+
       response = {
         type: 'recommendation',
         message: sentiment.needsHelp
@@ -107,6 +117,7 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
         suggestions: recResult.suggestions || []
       };
       break;
+    }
   }
 
   // Step 7: Async upsell check
