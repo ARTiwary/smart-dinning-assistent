@@ -160,6 +160,85 @@ app.post('/api/loyalty/redeem/verify', async (req, res) => {
   }
 })
 
+// Create reservation
+app.post('/api/reservations', async (req, res) => {
+  try {
+    const { name, phone, tableId, date, time, guests, note } = req.body
+    if (!name || !phone || !date || !time) {
+      return res.status(400).json({ error: 'Name, phone, date and time are required' })
+    }
+
+    // Check if table already reserved at that time
+    const existing = await prisma.reservation.findFirst({
+      where: { tableId, date, time, status: { not: 'cancelled' } }
+    })
+    if (existing) {
+      return res.status(400).json({ error: 'Table already booked at this time' })
+    }
+
+    const reservation = await prisma.reservation.create({
+      data: { name, phone, tableId, date, time, guests: Number(guests), note }
+    })
+    res.json(reservation)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get reservations (admin)
+app.get('/api/reservations', async (req, res) => {
+  const key = req.headers['x-admin-key']
+  if (key !== (process.env.ADMIN_KEY || 'admin123')) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const reservations = await prisma.reservation.findMany({
+    orderBy: [{ date: 'asc' }, { time: 'asc' }]
+  })
+  res.json(reservations)
+})
+
+// Cancel reservation
+app.patch('/api/reservations/:id/cancel', async (req, res) => {
+  try {
+    const reservation = await prisma.reservation.update({
+      where: { id: req.params.id },
+      data: { status: 'cancelled' }
+    })
+    res.json(reservation)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get available slots for a date
+app.get('/api/reservations/slots', async (req, res) => {
+  try {
+    const { date, guests } = req.query
+    const booked = await prisma.reservation.findMany({
+      where: { date, status: { not: 'cancelled' } },
+      select: { tableId: true, time: true }
+    })
+
+    const TIMES = ['12:00', '12:30', '13:00', '13:30', '14:00',
+                   '14:30', '19:00', '19:30', '20:00', '20:30', '21:00']
+    const TABLES = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10']
+
+    const bookedSet = new Set(booked.map(b => `${b.tableId}-${b.time}`))
+    const available = []
+
+    TIMES.forEach(time => {
+      const availableTables = TABLES.filter(t => !bookedSet.has(`${t}-${time}`))
+      if (availableTables.length > 0) {
+        available.push({ time, availableTables: availableTables.length })
+      }
+    })
+
+    res.json(available)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 setupSocketHandlers(io)
 
 const PORT = process.env.PORT || 4000

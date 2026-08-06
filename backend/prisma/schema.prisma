@@ -120,3 +120,16 @@ model LoyaltyTransaction {
   createdAt DateTime @default(now())
   account   LoyaltyAccount @relation(fields: [phone], references: [phone])
 }
+
+model Reservation {
+  id          String   @id @default(uuid())
+  name        String
+  phone       String
+  tableId     String
+  date        String
+  time        String
+  guests      Int      @default(2)
+  status      String   @default("confirmed")
+  note        String?
+  createdAt   DateTime @default(now())
+}

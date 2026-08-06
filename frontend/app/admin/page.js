@@ -24,6 +24,7 @@ const STATUS_FLOW = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
 export default function AdminPanel() {
   const [tab, setTab] = useState('dashboard')
   const [orders, setOrders] = useState([])
+  const [reservations, setReservations] = useState([])
   const [stats, setStats] = useState(null)
   const [loyaltyStats, setLoyaltyStats] = useState(null)
   const [tables, setTables] = useState([])
@@ -68,6 +69,15 @@ export default function AdminPanel() {
     }
   }, [])
 
+  async function fetchReservations() {
+    try {
+      const { data } = await axios.get(`${API}/api/reservations`, { headers })
+      setReservations(data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   async function fetchMenuItems() {
     try {
       const { data } = await axios.get(`${API}/api/admin/menu`, { headers })
@@ -89,10 +99,12 @@ export default function AdminPanel() {
   useEffect(() => {
     if (!authed) return
     fetchData()
+    fetchReservations()
     fetchMenuItems()
     fetchCoupons()
     const interval = setInterval(() => {
       fetchData()
+      fetchReservations()
       fetchMenuItems()
       fetchCoupons()
     }, 10000)
@@ -157,6 +169,7 @@ export default function AdminPanel() {
           { id: 'analytics', label: '📈 Analytics' },
           { id: 'loyalty', label: '💎 Loyalty' },
           { id: 'orders', label: '🧾 Orders' },
+          { id: 'reservations', label: '📅 Reservations' },
           { id: 'tables', label: '🪑 Tables & QR' },
           { id: 'menu', label: '🍽️ Menu' },
           { id: 'coupons', label: '🎟️ Coupons' },
@@ -186,6 +199,9 @@ export default function AdminPanel() {
             {tab === 'analytics' && <Analytics orders={orders} stats={stats} />}
             {tab === 'loyalty' && <LoyaltyView loyaltyStats={loyaltyStats} />}
             {tab === 'orders' && <Orders orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
+            {tab === 'reservations' && (
+              <ReservationsPanel reservations={reservations} onRefresh={fetchReservations} headers={headers} />
+            )}
             {tab === 'tables' && <Tables tables={tables} tableCount={tableCount} setTableCount={setTableCount} qrMap={qrMap} onGenerateQR={generateQR} onCloseTable={closeTable} />}
             {tab === 'menu' && (
               <MenuManagement
@@ -203,6 +219,140 @@ export default function AdminPanel() {
       {selectedOrder && (
         <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatusChange={updateStatus} />
       )}
+    </div>
+  )
+}
+
+function ReservationsPanel({ reservations, onRefresh, headers }) {
+  const [filter, setFilter] = useState('upcoming')
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const filtered = reservations.filter(r => {
+    if (filter === 'upcoming') return r.date >= today && r.status !== 'cancelled'
+    if (filter === 'today') return r.date === today && r.status !== 'cancelled'
+    if (filter === 'cancelled') return r.status === 'cancelled'
+    return true
+  })
+
+  async function cancel(id) {
+    if (!confirm('Cancel this reservation?')) return
+    await axios.patch(`${API}/api/reservations/${id}/cancel`, {}, { headers })
+    onRefresh()
+  }
+
+  const TIMES = {
+    '12:00':'12:00 PM','12:30':'12:30 PM','13:00':'1:00 PM',
+    '13:30':'1:30 PM','14:00':'2:00 PM','14:30':'2:30 PM',
+    '19:00':'7:00 PM','19:30':'7:30 PM','20:00':'8:00 PM',
+    '20:30':'8:30 PM','21:00':'9:00 PM'
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, margin: 0 }}>
+          Table Reservations
+        </h3>
+        <p style={{ color: '#7a5f58', fontSize: '13px', margin: 0 }}>
+          {reservations.filter(r => r.date === today && r.status !== 'cancelled').length} today
+        </p>
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+        {[
+          { id: 'today', label: "Today" },
+          { id: 'upcoming', label: "Upcoming" },
+          { id: 'all', label: "All" },
+          { id: 'cancelled', label: "Cancelled" },
+        ].map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            padding: '7px 16px', borderRadius: '20px', border: 'none',
+            cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+            background: filter === f.id ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)' : 'rgba(255,255,255,0.05)',
+            color: filter === f.id ? '#fff' : '#7a5f58',
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      {/* List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#7a5f58' }}>
+            <p style={{ fontSize: '32px', marginBottom: '8px' }}>📅</p>
+            <p>No reservations found</p>
+          </div>
+        ) : filtered.map(r => (
+          <div key={r.id} style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: `1px solid ${r.status === 'cancelled' ? 'rgba(255,100,100,0.15)' : 'rgba(255,107,53,0.12)'}`,
+            borderRadius: '16px', padding: '16px',
+            display: 'flex', alignItems: 'center', gap: '16px',
+            opacity: r.status === 'cancelled' ? 0.6 : 1
+          }}>
+            {/* Date block */}
+            <div style={{
+              width: '56px', height: '56px', borderRadius: '12px',
+              background: r.date === today
+                ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)'
+                : 'rgba(255,107,53,0.1)',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
+              <p style={{
+                color: r.date === today ? '#fff' : '#ff8c69',
+                fontSize: '18px', fontWeight: 800, margin: 0, lineHeight: 1
+              }}>
+                {new Date(r.date + 'T00:00:00').getDate()}
+              </p>
+              <p style={{
+                color: r.date === today ? 'rgba(255,255,255,0.8)' : '#7a5f58',
+                fontSize: '10px', margin: 0, textTransform: 'uppercase'
+              }}>
+                {new Date(r.date + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short' })}
+              </p>
+            </div>
+
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <p style={{ color: '#fff5f0', fontSize: '15px', fontWeight: 700, margin: 0 }}>
+                  {r.name}
+                </p>
+                {r.status === 'cancelled' && (
+                  <span style={{
+                    background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.2)',
+                    color: '#ff6b6b', fontSize: '10px', padding: '2px 6px', borderRadius: '6px'
+                  }}>CANCELLED</span>
+                )}
+              </div>
+              <p style={{ color: '#7a5f58', fontSize: '12px', margin: '0 0 4px' }}>
+                ⏰ {TIMES[r.time] || r.time} · 👥 {r.guests} guests · 🪑 {r.tableId}
+              </p>
+              <p style={{ color: '#7a5f58', fontSize: '12px', margin: 0 }}>
+                📱 +91{r.phone}
+              </p>
+              {r.note && (
+                <p style={{ color: '#555', fontSize: '11px', margin: '4px 0 0' }}>
+                  📝 {r.note}
+                </p>
+              )}
+            </div>
+
+            {/* Cancel button */}
+            {r.status !== 'cancelled' && (
+              <button onClick={() => cancel(r.id)} style={{
+                background: 'rgba(255,100,100,0.08)',
+                border: '1px solid rgba(255,100,100,0.2)',
+                color: '#ff6b6b', padding: '8px 14px',
+                borderRadius: '10px', fontSize: '12px',
+                fontWeight: 600, cursor: 'pointer', flexShrink: 0
+              }}>Cancel</button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
