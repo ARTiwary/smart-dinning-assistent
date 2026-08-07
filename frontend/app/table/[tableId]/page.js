@@ -61,38 +61,57 @@ export default function TablePage() {
     init()
   }, [tableId])
 
-  if (loading) return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justify: 'center',
-      flexDirection: 'column',
-      gap: '20px'
-    }}>
-      <div style={{ fontSize: '64px' }} className="float">🍛</div>
-      <p style={{
-        background: 'var(--grad-hero)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        fontSize: '18px',
-        fontFamily: 'var(--font-display)',
-        fontWeight: 600
-      }}>
+  if (loading) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "20px",
+        zIndex: 9999,
+      }}
+    >
+      <div style={{ fontSize: "64px" }} className="float">
+        🍛
+      </div>
+
+      <p
+        style={{
+          background: "var(--grad-hero)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          fontSize: "18px",
+          fontFamily: "var(--font-display)",
+          fontWeight: 600,
+          margin: 0,
+        }}
+      >
         Setting up your experience...
       </p>
-      <div style={{ display: 'flex', gap: '8px' }}>
-        {[0,1,2].map(i => (
-          <div key={i} style={{
-            width: '8px', height: '8px',
-            borderRadius: '50%',
-            background: 'var(--flame)',
-            animation: `bounce-dot 1.4s ease-in-out ${i * 0.16}s infinite`
-          }} />
+
+      <div style={{ display: "flex", gap: "8px" }}>
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              background: "var(--flame)",
+              animation: `bounce-dot 1.4s ease-in-out ${i * 0.16}s infinite`,
+            }}
+          />
         ))}
       </div>
     </div>
-  )
+  );
+}
 
   return (
     <div style={{
