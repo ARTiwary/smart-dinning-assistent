@@ -24,10 +24,11 @@ export async function updateProfile(phone, name, orderTotal, preferences) {
       lastVisit: new Date()
     },
     create: {
-      phone, name,
+      phone,
+      name,
       preferences: merged,
       orderCount: 1,
-      totalSpent: orderTotal,
+      totalSpent: orderTotal
     }
   })
 }
@@ -41,6 +42,8 @@ export async function getProfileMemory(phone) {
   if (profile) {
     await redis.setex(`profile:${phone}`, 3600, JSON.stringify(profile))
   }
+  return profile
+}
 
 export async function getLastOrder(phone) {
   if (!phone) return null
@@ -60,7 +63,7 @@ export async function getLastOrder(phone) {
 export async function getOrderHistory(phone) {
   if (!phone) return []
   try {
-    return prisma.order.findMany({
+    return await prisma.order.findMany({
       where: { customerPhone: phone, status: { not: 'cancelled' } },
       include: { orderItems: { include: { menuItem: true } } },
       orderBy: { createdAt: 'desc' },
@@ -76,7 +79,7 @@ export async function getFavoriteItems(phone) {
   try {
     const orders = await prisma.order.findMany({
       where: { customerPhone: phone, status: { not: 'cancelled' } },
-      include: { orderItems: { include: { menuItem: true } } },
+      include: { orderItems: { include: { menuItem: true } } }
     })
 
     const itemCount = {}
@@ -95,6 +98,4 @@ export async function getFavoriteItems(phone) {
   } catch (e) {
     return []
   }
-}
-  return profile
 }
