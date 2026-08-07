@@ -12,6 +12,7 @@ import ComboBuilder from '@/components/ComboBuilder'
 import InstallPrompt from '@/components/InstallPrompt'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import DietaryProfile from '@/components/DietaryProfile'
+import SmartReorder from '@/components/SmartReorder'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -65,7 +66,7 @@ export default function TablePage() {
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',
+      justify: 'center',
       flexDirection: 'column',
       gap: '20px'
     }}>
@@ -113,7 +114,7 @@ export default function TablePage() {
         padding: '12px 16px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justify: 'space-between',
         width: '100%',
         boxSizing: 'border-box',
       }}>
@@ -246,6 +247,12 @@ function HeroSection({ sessionId }) {
         />
       )}
 
+      {/* Smart Reorder */}
+      <SmartReorder
+        phone={typeof window !== 'undefined' ? localStorage.getItem('customerPhone') : null}
+        sessionId={sessionId}
+      />
+
       {/* AI Picks with real food images */}
       {picks.length > 0 && (
         <div>
@@ -330,7 +337,7 @@ function HeroSection({ sessionId }) {
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between'
+                      justify: 'space-between'
                     }}>
                       <span style={{
                         background: 'var(--grad-btn)',

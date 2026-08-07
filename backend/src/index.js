@@ -25,6 +25,7 @@ import { popularItems } from './services/menuService.js'
 import { translateMenu, detectLanguage } from './services/translationService.js'
 import { getDietaryProfile, saveDietaryProfile } from './services/dietaryService.js'
 import { getAccount, POINT_VALUE, MIN_REDEEM } from './services/loyaltyService.js'
+import { getLastOrder, getOrderHistory, getFavoriteItems } from './services/customerService.js'
 
 dotenv.config()
 
@@ -57,6 +58,40 @@ app.use('/api/admin', adminRoutes)
 
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Smart Dining Backend is running 🚀' })
+})
+
+// ==========================================
+// Customer Service Endpoints
+// ==========================================
+
+// Get last order for reorder
+app.get('/api/customer/:phone/last-order', async (req, res) => {
+  try {
+    const order = await getLastOrder(req.params.phone)
+    res.json(order || null)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get order history
+app.get('/api/customer/:phone/history', async (req, res) => {
+  try {
+    const orders = await getOrderHistory(req.params.phone)
+    res.json(orders)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get favorite items
+app.get('/api/customer/:phone/favorites', async (req, res) => {
+  try {
+    const items = await getFavoriteItems(req.params.phone)
+    res.json(items)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 // ==========================================
