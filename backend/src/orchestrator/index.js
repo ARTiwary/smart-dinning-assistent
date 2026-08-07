@@ -1,3 +1,4 @@
+import { extractDietaryInfo, saveDietaryProfile, getDietaryProfile } from '../services/dietaryService.js';
 import { multilingualAgent } from '../agents/multilingualAgent.js';
 import { greeterAgent } from '../agents/greeterAgent.js';
 import { recommendationAgent } from '../agents/recommendationAgent.js';
@@ -52,15 +53,46 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
   }
 
   // Get cross-session memory if phone available
+  let session = null;
   let profileMemory = null;
   try {
-    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    session = await prisma.session.findUnique({ where: { id: sessionId } });
     if (session?.customerPhone) {
       const { getProfileMemory } = await import('../services/customerService.js');
       profileMemory = await getProfileMemory(session.customerPhone);
     }
   } catch (e) {
     // Fail gracefully
+  }
+
+  // Step 3.5: Check for dietary info in message
+  const dietInfo = await extractDietaryInfo(userMessage);
+  if (dietInfo?.hasDietaryInfo) {
+    if (!session) {
+      session = await prisma.session.findUnique({ where: { id: sessionId } });
+    }
+    const phone = session?.customerPhone;
+    if (phone) {
+      await saveDietaryProfile(phone, {
+        conditions: dietInfo.conditions || [],
+        dietType: dietInfo.dietType || null,
+        allergies: dietInfo.allergies || [],
+        preferences: dietInfo.preferences || [],
+        avoidIngredients: dietInfo.avoidIngredients || [],
+      });
+
+      // Save to session context
+      await updateContext(sessionId, {
+        dietaryProfile: dietInfo,
+        allergensToAvoid: dietInfo.allergies || []
+      }, userMessage, 'user');
+
+      return {
+        type: 'dietary_saved',
+        message: dietInfo.message || `Got it! I've saved your dietary preferences and will filter all recommendations accordingly. ${dietInfo.dietType ? `I'll show you ${dietInfo.dietType} options.` : ''} ${dietInfo.allergies?.length > 0 ? `I'll avoid ${dietInfo.allergies.join(', ')} allergens.` : ''}`,
+        suggestions: []
+      };
+    }
   }
 
   // Step 4: Sentiment check (background)

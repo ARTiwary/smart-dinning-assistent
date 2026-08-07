@@ -11,6 +11,7 @@ import { useStore } from '@/lib/store'
 import ComboBuilder from '@/components/ComboBuilder'
 import InstallPrompt from '@/components/InstallPrompt'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import DietaryProfile from '@/components/DietaryProfile'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -236,6 +237,14 @@ function HeroSection({ sessionId }) {
           Chat with Zara below or browse our menu 👇
         </p>
       </div>
+
+      {/* Dietary Profile */}
+      {session?.customerPhone && (
+        <DietaryProfile
+          phone={session.customerPhone}
+          onSave={(profile) => console.log('Dietary profile saved', profile)}
+        />
+      )}
 
       {/* AI Picks with real food images */}
       {picks.length > 0 && (

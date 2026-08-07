@@ -144,3 +144,16 @@ model MenuTranslation {
   menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   @@unique([menuItemId, language])
 }
+
+model DietaryProfile {
+  id              String   @id @default(uuid())
+  phone           String   @unique
+  conditions      String[] // diabetic, hypertensive, celiac
+  dietType        String?  // vegan, vegetarian, keto, halal, jain
+  allergies       String[] // nuts, dairy, gluten, shellfish, eggs
+  preferences     String[] // spicy, mild, light, filling
+  avoidIngredients String[]
+  calories        Int?     // daily calorie target
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

@@ -1,3 +1,4 @@
+import { filterMenuByDiet } from '../services/dietaryService.js'
 import { llm } from '../lib/ollama.js'
 import { searchMenuItems } from '../lib/chroma.js'
 
@@ -7,8 +8,18 @@ export async function recommendationAgent(userMessage, preferences, cartItems, s
   // Real RAG — semantic vector search
   const results = await searchMenuItems(searchQuery, 15)
 
+  // Apply dietary profile filter
+  let dietFiltered = results
+  if (sessionPrefs?.dietaryProfile) {
+    dietFiltered = filterMenuByDiet(
+      results.map(r => ({ ...r.metadata, tags: r.metadata.tags?.split(',') || [], allergens: r.metadata.allergens?.split(',') || [] })),
+      sessionPrefs.dietaryProfile
+    ).map(item => results.find(r => r.metadata.id === item.id)).filter(Boolean)
+    if (dietFiltered.length === 0) dietFiltered = results // fallback
+  }
+
   const cartItemNames = cartItems.map(c => c.menuItem?.name?.toLowerCase())
-  let filtered = results.filter(r => !cartItemNames.includes(r.metadata.name?.toLowerCase()))
+  let filtered = dietFiltered.filter(r => !cartItemNames.includes(r.metadata.name?.toLowerCase()))
 
   // Category filter
   const lowerMsg = userMessage.toLowerCase()

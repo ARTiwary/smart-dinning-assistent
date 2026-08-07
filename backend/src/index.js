@@ -5,7 +5,13 @@ import morgan from 'morgan'
 import http from 'http'
 import { Server } from 'socket.io'
 import dotenv from 'dotenv'
+
+// Database & Socket Utilities
 import { setupSocketHandlers } from './lib/socket.js'
+import { prisma } from './db/prisma.js'
+import { sendReservationConfirmation, sendOrderCancellation } from './lib/whatsapp.js'
+
+// Route Imports
 import menuRoutes from './routes/menu.js'
 import sessionRoutes from './routes/session.js'
 import cartRoutes from './routes/cart.js'
@@ -13,10 +19,12 @@ import orderRoutes from './routes/order.js'
 import otpRoutes from './routes/otp.js'
 import aiRoutes from './routes/ai.js'
 import adminRoutes from './routes/admin.js'
+
+// Service Imports
 import { popularItems } from './services/menuService.js'
-import { prisma } from './db/prisma.js'
-import { sendReservationConfirmation, sendOrderCancellation } from './lib/whatsapp.js'
-import { translateMenu, detectLanguage } from './src/services/translationService.js'
+import { translateMenu, detectLanguage } from './services/translationService.js'
+import { getDietaryProfile, saveDietaryProfile } from './services/dietaryService.js'
+import { getAccount, POINT_VALUE, MIN_REDEEM } from './services/loyaltyService.js'
 
 dotenv.config()
 
@@ -27,11 +35,13 @@ export const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 })
 
+// Middleware
 app.use(helmet())
 app.use(cors({ origin: '*' }))
 app.use(morgan('dev'))
 app.use(express.json())
 
+// Mounted Modular Routes
 app.use('/api/menu', menuRoutes)
 app.use('/api/table', sessionRoutes)
 app.use('/api/session', sessionRoutes)
@@ -41,7 +51,40 @@ app.use('/api/otp', otpRoutes)
 app.use('/api/session', aiRoutes)
 app.use('/api/admin', adminRoutes)
 
-// Standalone order tracking endpoint
+// ==========================================
+// Base & Healthcheck Routes
+// ==========================================
+
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'Smart Dining Backend is running 🚀' })
+})
+
+// ==========================================
+// Dietary Profile Endpoints
+// ==========================================
+
+app.get('/api/dietary/:phone', async (req, res) => {
+  try {
+    const profile = await getDietaryProfile(req.params.phone)
+    res.json(profile || null)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/dietary/:phone', async (req, res) => {
+  try {
+    const profile = await saveDietaryProfile(req.params.phone, req.body)
+    res.json(profile)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ==========================================
+// Order Tracking & Management
+// ==========================================
+
 app.get('/api/order/:orderId', async (req, res) => {
   try {
     const order = await prisma.order.findUnique({
@@ -58,7 +101,6 @@ app.get('/api/order/:orderId', async (req, res) => {
   }
 })
 
-// Cancel order endpoint
 app.patch('/api/order/:orderId/cancel', async (req, res) => {
   try {
     const order = await prisma.order.findUnique({ where: { id: req.params.orderId } })
@@ -66,6 +108,7 @@ app.patch('/api/order/:orderId/cancel', async (req, res) => {
     if (!['pending'].includes(order.status)) {
       return res.status(400).json({ error: 'Order cannot be cancelled' })
     }
+
     const updated = await prisma.order.update({
       where: { id: req.params.orderId },
       data: { status: 'cancelled' }
@@ -84,12 +127,19 @@ app.patch('/api/order/:orderId/cancel', async (req, res) => {
   }
 })
 
+// ==========================================
+// Menu & Language Services
+// ==========================================
+
 app.get('/api/popular', async (req, res) => {
-  const items = await popularItems(req.query.time)
-  res.json(items)
+  try {
+    const items = await popularItems(req.query.time)
+    res.json(items)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
-// Get menu in specific language
 app.get('/api/menu/translated', async (req, res) => {
   try {
     const lang = req.query.lang || 'en'
@@ -106,7 +156,6 @@ app.get('/api/menu/translated', async (req, res) => {
   }
 })
 
-// Detect language from text
 app.post('/api/detect-language', async (req, res) => {
   try {
     const { text } = req.body
@@ -117,11 +166,10 @@ app.post('/api/detect-language', async (req, res) => {
   }
 })
 
-app.get('/', (req, res) => {
-  res.json({ status: 'ok', message: 'Smart Dining Backend is running 🚀' })
-})
+// ==========================================
+// Coupons & Promotions
+// ==========================================
 
-// Verify coupon
 app.post('/api/coupon/verify', async (req, res) => {
   const { code, orderTotal } = req.body
   try {
@@ -154,7 +202,6 @@ app.post('/api/coupon/verify', async (req, res) => {
   }
 })
 
-// Apply coupon (increment usage)
 app.post('/api/coupon/apply', async (req, res) => {
   const { code } = req.body
   try {
@@ -168,10 +215,12 @@ app.post('/api/coupon/apply', async (req, res) => {
   }
 })
 
-// Get loyalty account
+// ==========================================
+// Loyalty Program
+// ==========================================
+
 app.get('/api/loyalty/:phone', async (req, res) => {
   try {
-    const { getAccount, POINT_VALUE, MIN_REDEEM } = await import('./src/services/loyaltyService.js')
     const account = await getAccount(req.params.phone)
     res.json({ ...account, pointValue: POINT_VALUE, minRedeem: MIN_REDEEM })
   } catch (e) {
@@ -179,11 +228,9 @@ app.get('/api/loyalty/:phone', async (req, res) => {
   }
 })
 
-// Verify redemption
 app.post('/api/loyalty/redeem/verify', async (req, res) => {
   const { phone, points } = req.body
   try {
-    const { getAccount, POINT_VALUE, MIN_REDEEM } = await import('./src/services/loyaltyService.js')
     const account = await getAccount(phone)
     if (!account || account.points < MIN_REDEEM) {
       return res.status(400).json({ error: `Need at least ${MIN_REDEEM} points to redeem` })
@@ -198,7 +245,10 @@ app.post('/api/loyalty/redeem/verify', async (req, res) => {
   }
 })
 
-// Create reservation
+// ==========================================
+// Reservations
+// ==========================================
+
 app.post('/api/reservations', async (req, res) => {
   try {
     const { name, phone, tableId, date, time, guests, note } = req.body
@@ -206,7 +256,6 @@ app.post('/api/reservations', async (req, res) => {
       return res.status(400).json({ error: 'Name, phone, date and time are required' })
     }
 
-    // Check if table already reserved at that time
     const existing = await prisma.reservation.findFirst({
       where: { tableId, date, time, status: { not: 'cancelled' } }
     })
@@ -218,7 +267,6 @@ app.post('/api/reservations', async (req, res) => {
       data: { name, phone, tableId, date, time, guests: Number(guests), note }
     })
 
-    // Send WhatsApp confirmation
     try {
       await sendReservationConfirmation(phone, reservation)
     } catch (e) {
@@ -231,19 +279,21 @@ app.post('/api/reservations', async (req, res) => {
   }
 })
 
-// Get reservations (admin)
 app.get('/api/reservations', async (req, res) => {
-  const key = req.headers['x-admin-key']
-  if (key !== (process.env.ADMIN_KEY || 'admin123')) {
-    return res.status(401).json({ error: 'Unauthorized' })
+  try {
+    const key = req.headers['x-admin-key']
+    if (key !== (process.env.ADMIN_KEY || 'admin123')) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+    const reservations = await prisma.reservation.findMany({
+      orderBy: [{ date: 'asc' }, { time: 'asc' }]
+    })
+    res.json(reservations)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
   }
-  const reservations = await prisma.reservation.findMany({
-    orderBy: [{ date: 'asc' }, { time: 'asc' }]
-  })
-  res.json(reservations)
 })
 
-// Cancel reservation
 app.patch('/api/reservations/:id/cancel', async (req, res) => {
   try {
     const reservation = await prisma.reservation.update({
@@ -256,18 +306,19 @@ app.patch('/api/reservations/:id/cancel', async (req, res) => {
   }
 })
 
-// Get available slots for a date
 app.get('/api/reservations/slots', async (req, res) => {
   try {
-    const { date, guests } = req.query
+    const { date } = req.query
     const booked = await prisma.reservation.findMany({
       where: { date, status: { not: 'cancelled' } },
       select: { tableId: true, time: true }
     })
 
-    const TIMES = ['12:00', '12:30', '13:00', '13:30', '14:00',
-                   '14:30', '19:00', '19:30', '20:00', '20:30', '21:00']
-    const TABLES = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10']
+    const TIMES = [
+      '12:00', '12:30', '13:00', '13:30', '14:00',
+      '14:30', '19:00', '19:30', '20:00', '20:30', '21:00'
+    ]
+    const TABLES = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10']
 
     const bookedSet = new Set(booked.map(b => `${b.tableId}-${b.time}`))
     const available = []
@@ -285,6 +336,7 @@ app.get('/api/reservations/slots', async (req, res) => {
   }
 })
 
+// Initialize WebSockets & Server
 setupSocketHandlers(io)
 
 const PORT = process.env.PORT || 4000
