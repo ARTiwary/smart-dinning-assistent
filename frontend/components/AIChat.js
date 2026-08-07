@@ -17,6 +17,24 @@ const QUICK_BUTTONS = [
   { label: '👨‍🍳 Chef Special', message: 'what is the chef special today' },
 ]
 
+// Auto switch menu language based on user input
+async function detectAndSwitchLanguage(message) {
+  const hinglishWords = ['kuch', 'chahiye', 'khana', 'mujhe', 'dena', 'hai']
+  const isHinglish = hinglishWords.some(w => message.toLowerCase().includes(w))
+  const hasHindi = /[\u0900-\u097F]/.test(message)
+  const hasTelugu = /[\u0C00-\u0C7F]/.test(message)
+
+  const { language, setLanguage, fetchMenu } = useStore.getState()
+
+  if ((isHinglish || hasHindi) && language !== 'hi') {
+    setLanguage('hi')
+    await fetchMenu('hi')
+  } else if (hasTelugu && language !== 'te') {
+    setLanguage('te')
+    await fetchMenu('te')
+  }
+}
+
 // Suggestion card with image + qty controls
 function SuggestionCard({ s, session, sessionId, addToCart, setCartOpen }) {
   const { cart, updateQty, menu } = useStore()
@@ -87,12 +105,13 @@ function SuggestionCard({ s, session, sessionId, addToCart, setCartOpen }) {
           borderRadius: '20px', overflow: 'hidden', flexShrink: 0,
         }}>
           <button
-          onClick={() => updateQty(sid, cartItem.id, cartItem.quantity - 1)}
-          style={{
-            width: '30px', height: '30px', background: 'transparent',
-            border: 'none', color: '#fff', fontSize: '16px',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>−</button>
+            onClick={() => updateQty(sid, cartItem.id, cartItem.quantity - 1)}
+            style={{
+              width: '30px', height: '30px', background: 'transparent',
+              border: 'none', color: '#fff', fontSize: '16px',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>−
+          </button>
             
           <span style={{
             color: '#fff', fontWeight: 800, fontSize: '13px',
@@ -148,6 +167,9 @@ export default function AIChat({ sessionId }) {
   async function sendMessage(text) {
     const msg = text || input.trim()
     if (!msg) return
+
+    // Auto-detect input language and switch store language & menu
+    await detectAndSwitchLanguage(msg)
 
     if (!sessionId) {
       setMessages(prev => [...prev, {

@@ -25,6 +25,7 @@ model MenuItem {
   cartItems   CartItem[]
   orderItems  OrderItem[]
   createdAt   DateTime @default(now())
+  translations MenuTranslation[]
 }
 
 model Session {
@@ -132,4 +133,14 @@ model Reservation {
   status      String   @default("confirmed")
   note        String?
   createdAt   DateTime @default(now())
+}
+
+model MenuTranslation {
+  id          String   @id @default(uuid())
+  menuItemId  String
+  language    String   // hi | te | en
+  name        String
+  description String?
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  @@unique([menuItemId, language])
 }

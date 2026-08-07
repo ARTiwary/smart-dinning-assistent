@@ -38,6 +38,19 @@ export async function orchestrate(sessionId, userMessage, isFirstMessage = false
   const cartItems = await getCart(sessionId);
   const cartTotal = await getCartTotal(sessionId);
 
+  // Save detected language to session
+  if (nlu.language && nlu.language !== 'english') {
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        preferences: {
+          ...context.preferences,
+          language: nlu.language === 'hinglish' ? 'hi' : nlu.language === 'telugu-english' ? 'te' : 'en'
+        }
+      }
+    });
+  }
+
   // Get cross-session memory if phone available
   let profileMemory = null;
   try {

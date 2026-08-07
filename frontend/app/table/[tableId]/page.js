@@ -10,13 +10,27 @@ import GroupBanner from '@/components/GroupBanner'
 import { useStore } from '@/lib/store'
 import ComboBuilder from '@/components/ComboBuilder'
 import InstallPrompt from '@/components/InstallPrompt'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export default function TablePage() {
   const { tableId } = useParams()
-  const { setSession, setMenu, session, initDevice } = useStore()
+  const { 
+    setSession, 
+    session, 
+    initDevice, 
+    language, 
+    setLanguage, 
+    fetchMenu 
+  } = useStore()
+  
   const [loading, setLoading] = useState(true)
+
+  async function handleLanguageChange(lang) {
+    setLanguage(lang)
+    await fetchMenu(lang)
+  }
 
   useEffect(() => {
     initDevice()
@@ -33,8 +47,9 @@ export default function TablePage() {
         }
 
         setSession(sess)
-        const { data: menu } = await axios.get(`${API}/api/menu`)
-        setMenu(menu)
+        
+        // Fetch menu based on current/stored language
+        await fetchMenu(language || 'en')
       } catch (e) {
         console.error(e)
       } finally {
@@ -124,7 +139,12 @@ export default function TablePage() {
             TABLE {tableId} • AI DINING
           </p>
         </div>
-        <CartDrawer />
+
+        {/* Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <LanguageSwitcher currentLang={language} onChange={handleLanguageChange} />
+          <CartDrawer />
+        </div>
       </header>
 
       <GroupBanner tableId={tableId} />
@@ -143,27 +163,27 @@ function HeroSection({ sessionId }) {
   const { addToCart, session, menu, setCartOpen } = useStore()
 
   useEffect(() => {
-  if (!sessionId) return
+    if (!sessionId) return
 
-  async function fetchPicks() {
-    await new Promise(r => setTimeout(r, 3000))
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const { data } = await axios.post(
-          `${API}/api/session/${sessionId}/ai/chat`,
-          { message: 'show me best sellers popular items', isFirstMessage: false }
-        )
-        if (data.suggestions?.length > 0) {
-          setPicks(data.suggestions)
-          return
-        }
-      } catch (e) {}
-      if (attempt < 3) await new Promise(r => setTimeout(r, 5000))
+    async function fetchPicks() {
+      await new Promise(r => setTimeout(r, 3000))
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { data } = await axios.post(
+            `${API}/api/session/${sessionId}/ai/chat`,
+            { message: 'show me best sellers popular items', isFirstMessage: false }
+          )
+          if (data.suggestions?.length > 0) {
+            setPicks(data.suggestions)
+            return
+          }
+        } catch (e) {}
+        if (attempt < 3) await new Promise(r => setTimeout(r, 5000))
+      }
     }
-  }
 
-  fetchPicks()
-}, [sessionId])
+    fetchPicks()
+  }, [sessionId])
 
   function handleAdd(item) {
     if (!session?.id) return

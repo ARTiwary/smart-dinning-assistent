@@ -16,6 +16,7 @@ import adminRoutes from './routes/admin.js'
 import { popularItems } from './services/menuService.js'
 import { prisma } from './db/prisma.js'
 import { sendReservationConfirmation, sendOrderCancellation } from './lib/whatsapp.js'
+import { translateMenu, detectLanguage } from './src/services/translationService.js'
 
 dotenv.config()
 
@@ -86,6 +87,34 @@ app.patch('/api/order/:orderId/cancel', async (req, res) => {
 app.get('/api/popular', async (req, res) => {
   const items = await popularItems(req.query.time)
   res.json(items)
+})
+
+// Get menu in specific language
+app.get('/api/menu/translated', async (req, res) => {
+  try {
+    const lang = req.query.lang || 'en'
+    const items = await prisma.menuItem.findMany({
+      orderBy: { category: 'asc' }
+    })
+
+    if (lang === 'en') return res.json(items)
+
+    const translated = await translateMenu(items, lang)
+    res.json(translated)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Detect language from text
+app.post('/api/detect-language', async (req, res) => {
+  try {
+    const { text } = req.body
+    const lang = await detectLanguage(text)
+    res.json({ language: lang })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 app.get('/', (req, res) => {
