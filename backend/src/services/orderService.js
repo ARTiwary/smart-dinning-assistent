@@ -1,5 +1,6 @@
 import { prisma } from '../db/prisma.js';
 import { io } from '../index.js';
+import { sendOrderConfirmation } from '../lib/whatsapp.js';
 
 export async function placeOrder(sessionId, customerName, customerPhone) {
   const cartItems = await prisma.cartItem.findMany({
@@ -30,6 +31,14 @@ export async function placeOrder(sessionId, customerName, customerPhone) {
     },
     include: { orderItems: { include: { menuItem: true } } }
   });
+
+  // Send WhatsApp confirmation right after order creation
+  try {
+    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    await sendOrderConfirmation(customerPhone, order, session?.tableId || 'T1');
+  } catch (e) {
+    console.error('WhatsApp notification error:', e.message);
+  }
 
   await prisma.session.update({ where: { id: sessionId }, data: { status: 'ordered' } });
 

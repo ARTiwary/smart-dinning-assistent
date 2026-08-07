@@ -3,6 +3,7 @@ import { prisma } from '../db/prisma.js';
 import { redis } from '../lib/redis.js';
 import { io } from '../index.js'
 import { upload, cloudinary } from '../lib/cloudinary.js'
+import { sendOrderReady } from '../lib/whatsapp.js'
 
 const router = Router();
 
@@ -120,13 +121,24 @@ router.patch('/kitchen/orders/:id/ready', adminAuth, async (req, res) => {
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: { status: 'ready' },
-    include: { session: true }
+    include: {
+      session: true,
+      orderItems: { include: { menuItem: true } }
+    }
   })
-  // Notify customer via socket
+
+  // Notify customer on WhatsApp
+  try {
+    await sendOrderReady(order.customerPhone, order, order.session?.tableId)
+  } catch (e) {
+    console.error('WhatsApp ready error:', e.message)
+  }
+
   io.to(`table:${order.session.tableId}`).emit('order:ready', {
     orderId: order.id,
-    message: '🎉 Your order is ready! Please collect it.'
+    message: '🎉 Your order is ready!'
   })
+
   res.json(order)
 })
 

@@ -15,6 +15,7 @@ import aiRoutes from './routes/ai.js'
 import adminRoutes from './routes/admin.js'
 import { popularItems } from './services/menuService.js'
 import { prisma } from './db/prisma.js'
+import { sendReservationConfirmation, sendOrderCancellation } from './lib/whatsapp.js'
 
 dotenv.config()
 
@@ -68,6 +69,14 @@ app.patch('/api/order/:orderId/cancel', async (req, res) => {
       where: { id: req.params.orderId },
       data: { status: 'cancelled' }
     })
+
+    // Send WhatsApp cancellation notification
+    try {
+      await sendOrderCancellation(order.customerPhone, updated)
+    } catch (e) {
+      console.error('WhatsApp cancellation error:', e.message)
+    }
+
     res.json(updated)
   } catch (e) {
     res.status(500).json({ error: e.message })
@@ -179,6 +188,14 @@ app.post('/api/reservations', async (req, res) => {
     const reservation = await prisma.reservation.create({
       data: { name, phone, tableId, date, time, guests: Number(guests), note }
     })
+
+    // Send WhatsApp confirmation
+    try {
+      await sendReservationConfirmation(phone, reservation)
+    } catch (e) {
+      console.error('WhatsApp reservation error:', e.message)
+    }
+
     res.json(reservation)
   } catch (e) {
     res.status(500).json({ error: e.message })
