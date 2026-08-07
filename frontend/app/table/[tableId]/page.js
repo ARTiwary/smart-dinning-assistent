@@ -269,7 +269,7 @@ function Header({ tableId, language, onLanguageChange }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <LanguageSwitcher currentLang={language} onChange={onLanguageChange} />
+        <LanguageSwitcher current={language} onChange={onLanguageChange} />
         <CartDrawer />
       </div>
     </header>

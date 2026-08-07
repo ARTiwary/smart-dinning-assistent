@@ -1,6 +1,6 @@
-import { prisma } from '../db/prisma.js'
-import { redis } from '../lib/redis.js'
-
+import { prisma } from '../src/db/prisma.js'
+import { redis } from '../src/lib/redis.js'
+import { greeterAgent } from '../src/agents/greeterAgent.js'
 export async function getOrCreateProfile(phone) {
   let profile = await prisma.customerProfile.findUnique({ where: { phone } })
   if (!profile) {

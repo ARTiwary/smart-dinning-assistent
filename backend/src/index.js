@@ -25,7 +25,7 @@ import { popularItems } from './services/menuService.js'
 import { translateMenu, detectLanguage } from './services/translationService.js'
 import { getDietaryProfile, saveDietaryProfile } from './services/dietaryService.js'
 import { getAccount, POINT_VALUE, MIN_REDEEM } from './services/loyaltyService.js'
-import { getLastOrder, getOrderHistory, getFavoriteItems } from './services/customerService.js'
+import { getLastOrder, getOrderHistory, getFavoriteItems } from '../services/customerService.js'
 
 dotenv.config()
 
