@@ -13,6 +13,7 @@ import InstallPrompt from '@/components/InstallPrompt'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import DietaryProfile from '@/components/DietaryProfile'
 import SmartReorder from '@/components/SmartReorder'
+import TimePicks from '@/components/TimePicks'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -24,14 +25,7 @@ const PICKS_RETRY_DELAY_MS = 5000
 
 export default function TablePage() {
   const { tableId } = useParams()
-  const {
-    setSession,
-    session,
-    initDevice,
-    language,
-    setLanguage,
-    fetchMenu,
-  } = useStore()
+  const { setSession, session, initDevice, language, setLanguage, fetchMenu } = useStore()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -63,7 +57,7 @@ export default function TablePage() {
         await fetchMenu(lang || 'en')
       } catch (e) {
         console.error(e)
-        setError('We couldn\u2019t load your table. Check your connection and try again.')
+        setError('We couldn’t load your table. Check your connection and try again.')
       } finally {
         setLoading(false)
       }
@@ -343,6 +337,9 @@ function HeroSection({ sessionId }) {
       )}
 
       <SmartReorder phone={phone} sessionId={sessionId} />
+
+      {/* Time-based picks */}
+      <TimePicks sessionId={sessionId} />
 
       {picks.length > 0 && (
         <AiPicksCarousel picks={picks} menu={menu} onAdd={handleAdd} />

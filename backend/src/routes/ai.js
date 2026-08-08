@@ -83,4 +83,91 @@ Respond ONLY with JSON, no markdown:
   }
 })
 
+router.get('/:sessionId/ai/time-picks', async (req, res) => {
+  try {
+    await ensureEmbeddings()
+    const { sessionId } = req.params
+
+    const session = await prisma.session.findUnique({ where: { id: sessionId } })
+    if (!session) return res.status(404).json({ error: 'Session not found' })
+
+    const now = new Date()
+    const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000)
+    const hour = ist.getUTCHours()
+
+    let timeSlot, tagFilters, message, emoji
+
+    if (hour >= 7 && hour < 11) {
+      timeSlot = 'Breakfast'
+      tagFilters = ['light', 'quick-serve']
+      message = "Good morning! Here's what's perfect for breakfast 🌅"
+      emoji = '🌅'
+    } else if (hour >= 11 && hour < 15) {
+      timeSlot = 'Lunch'
+      tagFilters = ['filling', 'bestseller']
+      message = "It's lunch time! Here are today's top picks 🍽️"
+      emoji = '☀️'
+    } else if (hour >= 15 && hour < 18) {
+      timeSlot = 'Evening Snacks'
+      tagFilters = ['light', 'quick-serve', 'veg']
+      message = "Evening snack time! Try these light bites ☕"
+      emoji = '🌤️'
+    } else if (hour >= 18 && hour < 22) {
+      timeSlot = 'Dinner'
+      tagFilters = ['filling', 'chef_special', 'bestseller']
+      message = "Good evening! Tonight's chef specials are here 🌙"
+      emoji = '🌙'
+    } else {
+      timeSlot = 'Late Night'
+      tagFilters = ['light', 'quick-serve']
+      message = "Late night cravings? We've got you covered 🌃"
+      emoji = '🌃'
+    }
+
+    // Get items matching time slot
+    const items = await prisma.menuItem.findMany({
+      where: {
+        available: true,
+        OR: tagFilters.map(tag => ({ tags: { has: tag } }))
+      },
+      orderBy: { popularScore: 'desc' },
+      take: 6
+    })
+
+    // Shuffle slightly for variety
+    const shuffled = items.sort(() => Math.random() - 0.3).slice(0, 4)
+
+    res.json({
+      timeSlot,
+      emoji,
+      message,
+      hour,
+      items: shuffled.map(item => ({
+        itemId: item.id,
+        name: item.name,
+        price: Number(item.price),
+        description: item.description,
+        imageUrl: item.imageUrl,
+        tags: item.tags,
+        reason: getTimeReason(timeSlot, item)
+      }))
+    })
+  } catch (e) {
+    console.error('Time picks error:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+function getTimeReason(timeSlot, item) {
+  const reasons = {
+    'Breakfast': ['Perfect morning starter', 'Light and energizing', 'Quick breakfast option'],
+    'Lunch': ['Popular lunch choice', 'Filling midday meal', 'Chef\'s lunch special'],
+    'Evening Snacks': ['Perfect evening bite', 'Light and refreshing', 'Great with tea'],
+    'Dinner': ['Tonight\'s special', 'Perfect dinner choice', 'Chef\'s recommendation'],
+    'Late Night': ['Light late-night option', 'Quick and satisfying', 'Perfect for night owls']
+  }
+  const list = reasons[timeSlot] || ['Popular choice']
+  return list[Math.floor(Math.random() * list.length)]
+}
+
 export default router
