@@ -14,6 +14,7 @@ import LanguageSwitcher from '@/components/LanguageSwitcher'
 import DietaryProfile from '@/components/DietaryProfile'
 import SmartReorder from '@/components/SmartReorder'
 import TimePicks from '@/components/TimePicks'
+import AllergyAlert from '@/components/AllergyAlert'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -104,6 +105,8 @@ export default function TablePage() {
       <AIChat sessionId={session?.id} tableId={tableId} />
 
       <InstallPrompt />
+      {/* Allergy Alert Modal */}
+      <AllergyAlertWrapper />
     </div>
   )
 }
@@ -181,12 +184,7 @@ function ErrorScreen({ message, onRetry }) {
     >
       <div style={{ fontSize: '48px' }}>😕</div>
       <p
-        style={{
-          color: 'var(--text-primary)',
-          fontFamily: 'var(--font-display)',
-          fontSize: '16px',
-          fontWeight: 600,
-          margin: 0,
+        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 600, margin: 0,
         }}
       >
         {message}
@@ -194,15 +192,7 @@ function ErrorScreen({ message, onRetry }) {
       <button
         onClick={onRetry}
         className="btn-press"
-        style={{
-          background: 'var(--grad-btn)',
-          border: 'none',
-          color: '#fff',
-          fontSize: '13px',
-          fontWeight: 700,
-          padding: '10px 24px',
-          borderRadius: '20px',
-          cursor: 'pointer',
+        style={{ background: 'var(--grad-btn)', border: 'none', color: '#fff', fontSize: '13px', fontWeight: 700, padding: '10px 24px', borderRadius: '20px', cursor: 'pointer',
         }}
       >
         Try again
@@ -235,16 +225,7 @@ function Header({ tableId, language, onLanguageChange }) {
     >
       <div>
         <h1
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '22px',
-            fontWeight: 700,
-            background: 'var(--grad-hero)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            lineHeight: 1.2,
-            margin: 0,
+          style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: 700, background: 'var(--grad-hero)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', lineHeight: 1.2, margin: 0,
           }}
         >
           🍛 Spice Garden
@@ -355,47 +336,21 @@ function HeroSection({ sessionId }) {
 function HeroBanner() {
   return (
     <div
-      style={{
-        background:
-          'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(255,107,157,0.1) 50%, rgba(196,77,255,0.08) 100%)',
-        border: '1px solid rgba(255,107,53,0.2)',
-        borderRadius: '20px',
-        padding: '20px',
-        marginBottom: '20px',
-        position: 'relative',
-        overflow: 'hidden',
+      style={{background:'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(255,107,157,0.1) 50%, rgba(196,77,255,0.08) 100%)',border: '1px solid rgba(255,107,53,0.2)',borderRadius: '20px',padding: '20px',marginBottom: '20px',position: 'relative',overflow: 'hidden',
       }}
     >
       <div
-        style={{
-          position: 'absolute',
-          top: '-30px',
-          right: '-20px',
-          width: '120px',
-          height: '120px',
-          background: 'radial-gradient(circle, rgba(255,107,53,0.2), transparent)',
-          borderRadius: '50%',
+        style={{ position: 'absolute', top: '-30px', right: '-20px', width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(255,107,53,0.2), transparent)', borderRadius: '50%',
         }}
       />
       <p
-        style={{
-          color: 'var(--blush)',
-          fontSize: '12px',
-          fontWeight: 600,
-          letterSpacing: '0.1em',
-          marginBottom: '6px',
+        style={{ color: 'var(--blush)', fontSize: '12px', fontWeight: 600, letterSpacing: '0.1em', marginBottom: '6px',
         }}
       >
         ✨ WELCOME BACK
       </p>
       <h2
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '24px',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          lineHeight: 1.3,
-          marginBottom: '8px',
+        style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: '8px',
         }}
       >
         What&apos;s your mood
@@ -461,36 +416,18 @@ function PickCard({ item, imageUrl, delay, onAdd }) {
   return (
     <div
       className="card-lift"
-      style={{
-        minWidth: '160px',
-        maxWidth: '160px',
-        background: 'var(--grad-card)',
-        border: '1px solid rgba(255,107,53,0.2)',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        animation: `slideUp 0.5s ${delay}s both`,
-        flexShrink: 0,
+      style={{ minWidth: '160px', maxWidth: '160px', background: 'var(--grad-card)', border: '1px solid rgba(255,107,53,0.2)', borderRadius: '16px', overflow: 'hidden', animation: `slideUp 0.5s ${delay}s both`, flexShrink: 0,
       }}
     >
       <div
-        style={{
-          width: '100%',
-          height: '100px',
-          overflow: 'hidden',
-          position: 'relative',
-          background:
-            'linear-gradient(135deg, rgba(255,107,53,0.12), rgba(255,107,157,0.08))',
+        style={{ width: '100%', height: '100px', overflow: 'hidden', position: 'relative', background: 'linear-gradient(135deg, rgba(255,107,53,0.12), rgba(255,107,157,0.08))',
         }}
       >
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={item.name}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              transition: 'transform 0.3s ease',
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease',
             }}
             onError={(e) => {
               e.target.style.display = 'none'
@@ -501,16 +438,7 @@ function PickCard({ item, imageUrl, delay, onAdd }) {
         ) : null}
         <div
           className="fallback-emoji"
-          style={{
-            display: imageUrl ? 'none' : 'flex',
-            width: '100%',
-            height: '100%',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '36px',
-            position: imageUrl ? 'absolute' : 'relative',
-            top: 0,
-            left: 0,
+          style={{ display: imageUrl ? 'none' : 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: '36px', position: imageUrl ? 'absolute' : 'relative', top: 0, left: 0,
           }}
         >
           🍽️
@@ -519,39 +447,20 @@ function PickCard({ item, imageUrl, delay, onAdd }) {
 
       <div style={{ padding: '10px' }}>
         <p
-          style={{
-            color: 'var(--text-primary)',
-            fontSize: '13px',
-            fontWeight: 600,
-            marginBottom: '4px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+          style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}
         >
           {item.name}
         </p>
         <p
-          style={{
-            color: 'var(--coral)',
-            fontSize: '11px',
-            marginBottom: '8px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+          style={{ color: 'var(--coral)', fontSize: '11px', marginBottom: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}
         >
           {item.reason}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span
-            style={{
-              background: 'var(--grad-btn)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              fontWeight: 700,
-              fontSize: '14px',
+            style={{ background: 'var(--grad-btn)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontWeight: 700, fontSize: '14px',
             }}
           >
             ₹{item.price}
@@ -560,15 +469,7 @@ function PickCard({ item, imageUrl, delay, onAdd }) {
             onClick={() => onAdd(item)}
             className="btn-press"
             aria-label={`Add ${item.name} to cart`}
-            style={{
-              background: 'var(--grad-btn)',
-              border: 'none',
-              color: '#fff',
-              fontSize: '11px',
-              fontWeight: 700,
-              padding: '5px 10px',
-              borderRadius: '20px',
-              cursor: 'pointer',
+            style={{ background: 'var(--grad-btn)', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '5px 10px', borderRadius: '20px', cursor: 'pointer',
             }}
           >
             + Add
@@ -576,6 +477,21 @@ function PickCard({ item, imageUrl, delay, onAdd }) {
         </div>
       </div>
     </div>
+  )
+}
+
+function AllergyAlertWrapper() {
+  const { allergyAlerts, allergyItemName, clearAllergyAlert, confirmAllergyAdd } = useStore()
+
+  if (!allergyAlerts || allergyAlerts.length === 0) return null
+
+  return (
+    <AllergyAlert
+      alerts={allergyAlerts}
+      itemName={allergyItemName}
+      onConfirm={confirmAllergyAdd}
+      onCancel={clearAllergyAlert}
+    />
   )
 }
 

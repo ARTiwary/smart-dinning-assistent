@@ -371,6 +371,100 @@ app.get('/api/reservations/slots', async (req, res) => {
   }
 })
 
+// Check item for allergens against customer profile
+app.post('/api/allergen-check', async (req, res) => {
+  try {
+    const { menuItemId, phone } = req.body
+
+    const item = await prisma.menuItem.findUnique({ where: { id: menuItemId } })
+    if (!item) return res.json({ safe: true, alerts: [] })
+
+    let profile = null
+    if (phone) {
+      profile = await prisma.dietaryProfile.findUnique({ where: { phone } })
+    }
+
+    const alerts = []
+
+    // Check against dietary profile allergies
+    if (profile?.allergies?.length > 0) {
+      const matches = profile.allergies.filter(a => item.allergens.includes(a))
+      if (matches.length > 0) {
+        alerts.push({
+          type: 'allergy',
+          severity: 'high',
+          message: `⚠️ Contains ${matches.join(', ')} which you're allergic to!`,
+          allergens: matches
+        })
+      }
+    }
+
+    // Check medical conditions
+    if (profile?.conditions?.includes('diabetic')) {
+      if (item.tags.includes('sweet')) {
+        alerts.push({
+          type: 'condition',
+          severity: 'medium',
+          message: '🩺 High sugar content — not ideal for diabetics',
+          condition: 'diabetic'
+        })
+      }
+    }
+
+    if (profile?.conditions?.includes('hypertensive')) {
+      const highSodium = ['spicy', 'fried'].some(t => item.tags.includes(t))
+      if (highSodium) {
+        alerts.push({
+          type: 'condition',
+          severity: 'low',
+          message: '❤️ This item may be high in sodium',
+          condition: 'hypertensive'
+        })
+      }
+    }
+
+    if (profile?.conditions?.includes('celiac')) {
+      if (item.allergens.includes('gluten')) {
+        alerts.push({
+          type: 'condition',
+          severity: 'high',
+          message: '🌾 Contains gluten — not safe for celiac disease',
+          condition: 'celiac'
+        })
+      }
+    }
+
+    // Check avoided ingredients
+    if (profile?.avoidIngredients?.length > 0) {
+      const desc = (item.description || '').toLowerCase()
+      const name = item.name.toLowerCase()
+      const found = profile.avoidIngredients.filter(ing =>
+        desc.includes(ing.toLowerCase()) || name.includes(ing.toLowerCase())
+      )
+      if (found.length > 0) {
+        alerts.push({
+          type: 'preference',
+          severity: 'medium',
+          message: `⚠️ May contain ${found.join(', ')} which you want to avoid`,
+          ingredients: found
+        })
+      }
+    }
+
+    res.json({
+      safe: alerts.length === 0,
+      alerts,
+      item: {
+        name: item.name,
+        allergens: item.allergens,
+        tags: item.tags
+      }
+    })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // Initialize WebSockets & Server
 setupSocketHandlers(io)
 

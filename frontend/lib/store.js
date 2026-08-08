@@ -22,6 +22,11 @@ export const useStore = create((set, get) => ({
   deviceId: null,
   language: 'en', // Active language state
 
+  // Allergy safety state
+  pendingCartAdd: null,
+  allergyAlerts: [],
+  allergyItemName: '',
+
   setSession: (session) => set({ session }),
   setMenu: (menu) => set({ menu }),
   setCart: (cart) => set({ cart }),
@@ -33,6 +38,26 @@ export const useStore = create((set, get) => ({
     const deviceId = getDeviceId()
     set({ deviceId })
     return deviceId
+  },
+
+  clearAllergyAlert: () => set({
+    pendingCartAdd: null,
+    allergyAlerts: [],
+    allergyItemName: ''
+  }),
+
+  confirmAllergyAdd: async () => {
+    const pending = get().pendingCartAdd
+    if (!pending) return
+    set({ pendingCartAdd: null, allergyAlerts: [], allergyItemName: '' })
+    await get().addToCart(
+      pending.sessionId,
+      pending.menuItemId,
+      pending.name,
+      pending.price,
+      pending.addedBy,
+      true // Skip allergy check on confirmation
+    )
   },
 
   // Fetches menu based on selected language (defaults to store's current language)
@@ -48,10 +73,33 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  addToCart: async (sessionId, menuItemId, name, price, addedBy = 'You') => {
+  addToCart: async (sessionId, menuItemId, name, price, addedBy = 'You', skipAllergyCheck = false) => {
     if (!sessionId) return
-    
-    // Make sure deviceId is initialized
+
+    // Perform allergy pre-check if phone exists and flag isn't skipped
+    if (!skipAllergyCheck) {
+      const phone = typeof window !== 'undefined' ? localStorage.getItem('customerPhone') : null
+      if (phone) {
+        try {
+          const { data } = await axios.post(`${API}/api/allergen-check`, {
+            menuItemId, phone
+          })
+          if (!data.safe && data.alerts?.length > 0) {
+            // Store pending details & trigger UI alert modal
+            set({
+              pendingCartAdd: { sessionId, menuItemId, name, price, addedBy },
+              allergyAlerts: data.alerts,
+              allergyItemName: name
+            })
+            return
+          }
+        } catch (e) {
+          console.error('Allergen check error:', e)
+        }
+      }
+    }
+
+    // Ensure deviceId is initialized
     let deviceId = get().deviceId
     if (!deviceId) {
       deviceId = getDeviceId()
