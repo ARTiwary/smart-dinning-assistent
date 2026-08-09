@@ -262,4 +262,122 @@ router.delete('/menu/image/:publicId', adminAuth, async (req, res) => {
   }
 })
 
+router.get('/forecast', adminAuth, async (req, res) => {
+  try {
+    const now = new Date()
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+    // Get last 30 days orders
+    const orders = await prisma.order.findMany({
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+        status: { not: 'cancelled' }
+      },
+      include: { orderItems: { include: { menuItem: true } } }
+    })
+
+    // Revenue by hour
+    const hourlyRevenue = {}
+    const hourlyCount = {}
+    orders.forEach(o => {
+      const hour = new Date(o.createdAt).getHours()
+      hourlyRevenue[hour] = (hourlyRevenue[hour] || 0) + Number(o.totalAmount)
+      hourlyCount[hour] = (hourlyCount[hour] || 0) + 1
+    })
+
+    // Revenue by day of week
+    const dailyRevenue = {}
+    const dailyCount = {}
+    orders.forEach(o => {
+      const day = new Date(o.createdAt).getDay()
+      dailyRevenue[day] = (dailyRevenue[day] || 0) + Number(o.totalAmount)
+      dailyCount[day] = (dailyCount[day] || 0) + 1
+    })
+
+    // Top items
+    const itemCount = {}
+    orders.forEach(o => {
+      o.orderItems.forEach(oi => {
+        const name = oi.menuItem?.name
+        if (!itemCount[name]) itemCount[name] = { count: 0, revenue: 0, id: oi.menuItemId }
+        itemCount[name].count += oi.quantity
+        itemCount[name].revenue += Number(oi.price) * oi.quantity
+      })
+    })
+
+    const topItems = Object.entries(itemCount)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([name, data]) => ({ name, ...data }))
+
+    // Tomorrow prediction
+    const tomorrow = new Date(now)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowDay = tomorrow.getDay()
+
+    const avgDailyRevenue = dailyRevenue[tomorrowDay]
+      ? dailyRevenue[tomorrowDay] / (dailyCount[tomorrowDay] || 1) * 4
+      : Object.values(dailyRevenue).reduce((s, v) => s + v, 0) / 30
+
+    // Peak hours prediction
+    const peakHours = Object.entries(hourlyCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([hour, count]) => ({
+        hour: parseInt(hour),
+        label: formatHour(parseInt(hour)),
+        expectedOrders: Math.round(count / 4)
+      }))
+
+    // Weekly trend
+    const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const weeklyTrend = DAYS.map((day, i) => ({
+      day,
+      revenue: Math.round((dailyRevenue[i] || 0) / 4),
+      orders: Math.round((dailyCount[i] || 0) / 4)
+    }))
+
+    // Growth rate
+    const last7 = orders.filter(o =>
+      new Date(o.createdAt) >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    )
+    const prev7 = orders.filter(o => {
+      const d = new Date(o.createdAt)
+      return d >= new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) &&
+             d < new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    })
+
+    const last7Revenue = last7.reduce((s, o) => s + Number(o.totalAmount), 0)
+    const prev7Revenue = prev7.reduce((s, o) => s + Number(o.totalAmount), 0)
+    const growthRate = prev7Revenue > 0
+      ? ((last7Revenue - prev7Revenue) / prev7Revenue * 100).toFixed(1)
+      : 0
+
+    res.json({
+      tomorrow: {
+        day: DAYS[tomorrowDay],
+        expectedRevenue: Math.round(avgDailyRevenue),
+        expectedOrders: Math.round(avgDailyRevenue / 250),
+        peakHours
+      },
+      topItems,
+      weeklyTrend,
+      growthRate: Number(growthRate),
+      totalOrders30d: orders.length,
+      avgOrderValue: orders.length > 0
+        ? Math.round(orders.reduce((s, o) => s + Number(o.totalAmount), 0) / orders.length)
+        : 0
+    })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+function formatHour(hour) {
+  if (hour === 0) return '12 AM'
+  if (hour < 12) return `${hour} AM`
+  if (hour === 12) return '12 PM'
+  return `${hour - 12} PM`
+}
+
 export default router;

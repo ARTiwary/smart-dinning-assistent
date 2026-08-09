@@ -27,6 +27,7 @@ export default function AdminPanel() {
   const [reservations, setReservations] = useState([])
   const [stats, setStats] = useState(null)
   const [loyaltyStats, setLoyaltyStats] = useState(null)
+  const [forecast, setForecast] = useState(null)
   const [tables, setTables] = useState([])
   const [menuItems, setMenuItems] = useState([])
   const [coupons, setCoupons] = useState([])
@@ -96,17 +97,28 @@ export default function AdminPanel() {
     }
   }
 
+  async function fetchForecast() {
+    try {
+      const { data } = await axios.get(`${API}/api/admin/forecast`, { headers })
+      setForecast(data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   useEffect(() => {
     if (!authed) return
     fetchData()
     fetchReservations()
     fetchMenuItems()
     fetchCoupons()
+    fetchForecast()
     const interval = setInterval(() => {
       fetchData()
       fetchReservations()
       fetchMenuItems()
       fetchCoupons()
+      fetchForecast()
     }, 10000)
     return () => clearInterval(interval)
   }, [authed, fetchData])
@@ -167,6 +179,7 @@ export default function AdminPanel() {
         {[
           { id: 'dashboard', label: '📊 Dashboard' },
           { id: 'analytics', label: '📈 Analytics' },
+          { id: 'forecast', label: '🔮 Forecast' },
           { id: 'loyalty', label: '💎 Loyalty' },
           { id: 'orders', label: '🧾 Orders' },
           { id: 'reservations', label: '📅 Reservations' },
@@ -197,6 +210,7 @@ export default function AdminPanel() {
           <>
             {tab === 'dashboard' && <Dashboard stats={stats} loyaltyStats={loyaltyStats} orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
             {tab === 'analytics' && <Analytics orders={orders} stats={stats} />}
+            {tab === 'forecast' && <Forecast forecast={forecast} />}
             {tab === 'loyalty' && <LoyaltyView loyaltyStats={loyaltyStats} />}
             {tab === 'orders' && <Orders orders={orders} onStatusChange={updateStatus} onSelectOrder={setSelectedOrder} />}
             {tab === 'reservations' && (
@@ -219,6 +233,198 @@ export default function AdminPanel() {
       {selectedOrder && (
         <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatusChange={updateStatus} />
       )}
+    </div>
+  )
+}
+
+function Forecast({ forecast }) {
+  if (!forecast) return (
+    <div style={{ textAlign: 'center', padding: '60px', color: '#7a5f58' }}>
+      <p style={{ fontSize: '40px', marginBottom: '12px' }}>🔮</p>
+      <p>Not enough data yet. Place some orders first!</p>
+    </div>
+  )
+
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const maxRevenue = Math.max(...forecast.weeklyTrend.map(d => d.revenue), 1)
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, margin: '0 0 4px' }}>
+          🔮 Revenue Forecast
+        </h3>
+        <p style={{ color: '#7a5f58', fontSize: '13px', margin: 0 }}>
+          Based on last 30 days of order data
+        </p>
+      </div>
+
+      {/* Tomorrow prediction */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(255,107,53,0.12), rgba(196,77,255,0.08))',
+        border: '1px solid rgba(255,107,53,0.2)',
+        borderRadius: '20px', padding: '22px',
+        marginBottom: '20px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <span style={{ fontSize: '24px' }}>📅</span>
+          <div>
+            <p style={{ color: '#fff5f0', fontWeight: 700, fontSize: '16px', margin: 0 }}>
+              Tomorrow ({forecast.tomorrow.day})
+            </p>
+            <p style={{ color: '#7a5f58', fontSize: '12px', margin: '2px 0 0' }}>
+              AI prediction based on historical patterns
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+          {[
+            { label: 'Expected Revenue', value: `₹${forecast.tomorrow.expectedRevenue.toLocaleString()}`, color: '#4ade80', icon: '💰' },
+            { label: 'Expected Orders', value: forecast.tomorrow.expectedOrders, color: '#60a5fa', icon: '🧾' },
+            { label: '7-Day Growth', value: `${forecast.growthRate > 0 ? '+' : ''}${forecast.growthRate}%`, color: forecast.growthRate >= 0 ? '#4ade80' : '#ff6b6b', icon: forecast.growthRate >= 0 ? '📈' : '📉' },
+          ].map(kpi => (
+            <div key={kpi.label} style={{
+              background: 'rgba(0,0,0,0.3)', borderRadius: '14px', padding: '14px', textAlign: 'center'
+            }}>
+              <p style={{ fontSize: '20px', margin: '0 0 4px' }}>{kpi.icon}</p>
+              <p style={{ color: kpi.color, fontSize: '18px', fontWeight: 800, margin: '0 0 4px' }}>
+                {kpi.value}
+              </p>
+              <p style={{ color: '#7a5f58', fontSize: '10px', margin: 0 }}>{kpi.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Peak hours */}
+        <div>
+          <p style={{ color: '#c8a49a', fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>
+            🔥 Expected Peak Hours
+          </p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {forecast.tomorrow.peakHours.map((ph, i) => (
+              <div key={i} style={{
+                flex: 1, background: i === 0 ? 'rgba(255,107,53,0.15)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${i === 0 ? 'rgba(255,107,53,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: '12px', padding: '10px', textAlign: 'center'
+              }}>
+                <p style={{ color: i === 0 ? '#ff8c69' : '#c8a49a', fontSize: '14px', fontWeight: 700, margin: '0 0 2px' }}>
+                  {ph.label}
+                </p>
+                <p style={{ color: '#7a5f58', fontSize: '11px', margin: 0 }}>
+                  ~{ph.expectedOrders} orders
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Weekly revenue chart */}
+      <div style={{
+        background: 'linear-gradient(145deg, #1a1220, #201628)',
+        border: '1px solid rgba(255,107,53,0.12)',
+        borderRadius: '20px', padding: '20px',
+        marginBottom: '20px'
+      }}>
+        <p style={{ color: '#fff5f0', fontWeight: 700, fontSize: '15px', marginBottom: '20px' }}>
+          📊 Weekly Revenue Pattern
+        </p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '120px' }}>
+          {forecast.weeklyTrend.map((d, i) => (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+              {d.revenue > 0 && (
+                <p style={{ color: '#ff8c69', fontSize: '9px', fontWeight: 600, margin: 0 }}>
+                  ₹{d.revenue >= 1000 ? `${(d.revenue/1000).toFixed(1)}k` : d.revenue}
+                </p>
+              )}
+              <div style={{
+                width: '100%',
+                height: `${Math.max((d.revenue / maxRevenue) * 100, 4)}px`,
+                background: d.orders > 0
+                  ? 'linear-gradient(180deg, #ff6b9d, #ff6b35)'
+                  : '#2a2a2a',
+                borderRadius: '6px 6px 0 0',
+                minHeight: '4px',
+                transition: 'height 0.5s ease'
+              }} />
+              <p style={{ color: '#7a5f58', fontSize: '10px', margin: 0 }}>{d.day}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Top items forecast */}
+      <div style={{
+        background: 'linear-gradient(145deg, #1a1220, #201628)',
+        border: '1px solid rgba(255,107,53,0.12)',
+        borderRadius: '20px', padding: '20px',
+        marginBottom: '20px'
+      }}>
+        <p style={{ color: '#fff5f0', fontWeight: 700, fontSize: '15px', marginBottom: '16px' }}>
+          🏆 Predicted Top Sellers Tomorrow
+        </p>
+        {forecast.topItems.length === 0 ? (
+          <p style={{ color: '#7a5f58', textAlign: 'center', padding: '20px' }}>No data yet</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {forecast.topItems.map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '28px', height: '28px', borderRadius: '50%',
+                  background: i === 0 ? 'linear-gradient(135deg, #ffd700, #ffaa40)'
+                    : i === 1 ? 'linear-gradient(135deg, #c0c0c0, #888)'
+                    : i === 2 ? 'linear-gradient(135deg, #cd7f32, #8b4513)'
+                    : '#2a2a2a',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '12px', fontWeight: 800, color: '#fff', flexShrink: 0
+                }}>
+                  {i < 3 ? ['🥇','🥈','🥉'][i] : i + 1}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ color: '#fff5f0', fontSize: '14px', fontWeight: 600, margin: '0 0 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.name}
+                  </p>
+                  <div style={{ height: '5px', background: '#2a2a2a', borderRadius: '3px' }}>
+                    <div style={{
+                      height: '100%', borderRadius: '3px',
+                      background: 'linear-gradient(90deg, #ff6b35, #ff6b9d)',
+                      width: `${(item.count / forecast.topItems[0].count) * 100}%`
+                    }} />
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <p style={{ color: '#ff8c69', fontSize: '13px', fontWeight: 700, margin: 0 }}>
+                    {item.count}x
+                  </p>
+                  <p style={{ color: '#7a5f58', fontSize: '11px', margin: '2px 0 0' }}>
+                    ₹{Math.round(item.revenue)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Summary stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+        {[
+          { label: 'Orders (30 days)', value: forecast.totalOrders30d, icon: '📦', color: '#60a5fa' },
+          { label: 'Avg Order Value', value: `₹${forecast.avgOrderValue}`, icon: '💳', color: '#c44dff' },
+        ].map(s => (
+          <div key={s.label} style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: `1px solid ${s.color}25`,
+            borderRadius: '16px', padding: '18px'
+          }}>
+            <p style={{ fontSize: '24px', margin: '0 0 8px' }}>{s.icon}</p>
+            <p style={{ color: s.color, fontSize: '22px', fontWeight: 800, margin: '0 0 4px' }}>{s.value}</p>
+            <p style={{ color: '#7a5f58', fontSize: '12px', margin: 0 }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
