@@ -26,6 +26,7 @@ model MenuItem {
   orderItems  OrderItem[]
   createdAt   DateTime @default(now())
   translations MenuTranslation[]
+  inventory   Inventory?
 }
 
 model Session {
@@ -156,4 +157,14 @@ model DietaryProfile {
   calories        Int?     // daily calorie target
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model Inventory {
+  id          String   @id @default(uuid())
+  menuItemId  String   @unique
+  stock       Int      @default(0)
+  lowStockAt  Int      @default(10)
+  trackStock  Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 }

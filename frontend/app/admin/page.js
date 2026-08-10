@@ -31,6 +31,8 @@ export default function AdminPanel() {
   const [tables, setTables] = useState([])
   const [menuItems, setMenuItems] = useState([])
   const [coupons, setCoupons] = useState([])
+  const [inventory, setInventory] = useState([])
+  const [lowStockAlerts, setLowStockAlerts] = useState([])
   const [qrMap, setQrMap] = useState({})
   const [tableCount, setTableCount] = useState(10)
   const [loading, setLoading] = useState(true)
@@ -106,6 +108,19 @@ export default function AdminPanel() {
     }
   }
 
+  async function fetchInventory() {
+    try {
+      const [invRes, alertRes] = await Promise.all([
+        axios.get(`${API}/api/admin/inventory`, { headers }),
+        axios.get(`${API}/api/admin/inventory/alerts`, { headers })
+      ])
+      setInventory(invRes.data)
+      setLowStockAlerts(alertRes.data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   useEffect(() => {
     if (!authed) return
     fetchData()
@@ -113,12 +128,14 @@ export default function AdminPanel() {
     fetchMenuItems()
     fetchCoupons()
     fetchForecast()
+    fetchInventory()
     const interval = setInterval(() => {
       fetchData()
       fetchReservations()
       fetchMenuItems()
       fetchCoupons()
       fetchForecast()
+      fetchInventory()
     }, 10000)
     return () => clearInterval(interval)
   }, [authed, fetchData])
@@ -186,6 +203,7 @@ export default function AdminPanel() {
           { id: 'tables', label: '🪑 Tables & QR' },
           { id: 'menu', label: '🍽️ Menu' },
           { id: 'coupons', label: '🎟️ Coupons' },
+          { id: 'inventory', label: '📦 Inventory' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '10px 20px', border: 'none', cursor: 'pointer',
@@ -225,6 +243,15 @@ export default function AdminPanel() {
               />
             )}
             {tab === 'coupons' && <CouponManager coupons={coupons} onRefresh={fetchCoupons} headers={headers} />}
+            {tab === 'inventory' && (
+              <InventoryManager
+                inventory={inventory}
+                lowStockAlerts={lowStockAlerts}
+                menuItems={menuItems}
+                onRefresh={fetchInventory}
+                headers={headers}
+              />
+            )}
           </>
         )}
       </div>
@@ -1799,6 +1826,344 @@ function MenuItemModal({ item, headers, onClose, onSave }) {
             cursor: 'pointer', opacity: loading ? 0.6 : 1
           }}>{loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Item'}</button>
 
+          <button onClick={onClose} style={{
+            flex: 1, background: 'transparent',
+            border: '1px solid rgba(255,107,53,0.2)',
+            color: '#7a5f58', padding: '14px',
+            borderRadius: '12px', fontSize: '14px', cursor: 'pointer'
+          }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+function InventoryManager({ inventory, lowStockAlerts, menuItems, onRefresh, headers }) {
+  const [editItem, setEditItem] = useState(null)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('all')
+
+  const inventoryMap = {}
+  inventory.forEach(i => { inventoryMap[i.menuItemId] = i })
+
+  const enriched = menuItems.map(item => ({
+    ...item,
+    inventory: inventoryMap[item.id] || null
+  }))
+
+  const filtered = enriched.filter(item => {
+    const matchSearch = !search || item.name.toLowerCase().includes(search.toLowerCase())
+    const inv = item.inventory
+    if (filter === 'tracked') return matchSearch && inv?.trackStock
+    if (filter === 'low') return matchSearch && inv?.trackStock && inv?.stock <= inv?.lowStockAt
+    if (filter === 'out') return matchSearch && (!item.available || inv?.stock === 0)
+    return matchSearch
+  })
+
+  function getStockStatus(item) {
+    const inv = item.inventory
+    if (!inv || !inv.trackStock) return { label: 'Not Tracked', color: '#555', bg: 'rgba(255,255,255,0.04)' }
+    if (inv.stock === 0) return { label: 'Out of Stock', color: '#ff6b6b', bg: 'rgba(255,100,100,0.1)' }
+    if (inv.stock <= inv.lowStockAt) return { label: `Low: ${inv.stock}`, color: '#ffaa40', bg: 'rgba(255,170,64,0.1)' }
+    return { label: `In Stock: ${inv.stock}`, color: '#4ade80', bg: 'rgba(74,222,128,0.08)' }
+  }
+
+  async function quickRestock(menuItemId, amount) {
+    await axios.post(`${API}/api/admin/inventory/${menuItemId}/restock`,
+      { amount }, { headers })
+    onRefresh()
+  }
+
+  return (
+    <div>
+      {/* Low stock alerts */}
+      {lowStockAlerts.length > 0 && (
+        <div style={{
+          background: 'rgba(255,170,64,0.08)',
+          border: '1px solid rgba(255,170,64,0.3)',
+          borderRadius: '16px', padding: '16px', marginBottom: '20px'
+        }}>
+          <p style={{ color: '#ffaa40', fontWeight: 700, fontSize: '14px', margin: '0 0 10px' }}>
+            ⚠️ {lowStockAlerts.length} item{lowStockAlerts.length > 1 ? 's' : ''} running low
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {lowStockAlerts.map(alert => (
+              <div key={alert.id} style={{
+                background: 'rgba(255,170,64,0.1)',
+                border: '1px solid rgba(255,170,64,0.2)',
+                borderRadius: '10px', padding: '6px 12px',
+                display: 'flex', alignItems: 'center', gap: '8px'
+              }}>
+                <span style={{ color: '#ffaa40', fontSize: '13px', fontWeight: 600 }}>
+                  {alert.menuItem?.name}
+                </span>
+                <span style={{ color: '#7a5f58', fontSize: '12px' }}>
+                  {alert.stock} left
+                </span>
+                <button
+                  onClick={() => quickRestock(alert.menuItemId, 50)}
+                  style={{
+                    background: 'rgba(255,170,64,0.2)',
+                    border: 'none', color: '#ffaa40',
+                    padding: '3px 8px', borderRadius: '6px',
+                    fontSize: '11px', cursor: 'pointer', fontWeight: 600
+                  }}
+                >+50</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, margin: 0 }}>
+          Inventory Management
+        </h3>
+        <p style={{ color: '#7a5f58', fontSize: '13px', margin: 0 }}>
+          {inventory.filter(i => i.trackStock).length} items tracked
+        </p>
+      </div>
+
+      {/* Search + filter */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <input
+          placeholder="Search items..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            flex: 1, minWidth: '200px',
+            background: '#1a1220', border: '1px solid rgba(255,107,53,0.2)',
+            borderRadius: '10px', padding: '10px 14px',
+            color: '#fff5f0', fontSize: '14px', outline: 'none'
+          }}
+        />
+        {['all', 'tracked', 'low', 'out'].map(f => (
+          <button key={f} onClick={() => setFilter(f)} style={{
+            padding: '8px 14px', borderRadius: '20px', border: 'none',
+            cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+            background: filter === f ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)' : 'rgba(255,255,255,0.05)',
+            color: filter === f ? '#fff' : '#7a5f58',
+          }}>{f.charAt(0).toUpperCase() + f.slice(1)}</button>
+        ))}
+      </div>
+
+      {/* Items */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {filtered.map(item => {
+          const status = getStockStatus(item)
+          const inv = item.inventory
+          return (
+            <div key={item.id} style={{
+              background: 'linear-gradient(145deg, #1a1220, #201628)',
+              border: '1px solid rgba(255,107,53,0.1)',
+              borderRadius: '14px', padding: '14px',
+              display: 'flex', alignItems: 'center', gap: '12px'
+            }}>
+              {/* Image */}
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '10px',
+                overflow: 'hidden', flexShrink: 0,
+                background: 'rgba(255,107,53,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                {item.imageUrl
+                  ? <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ fontSize: '20px' }}>🍽️</span>
+                }
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: '#fff5f0', fontSize: '14px', fontWeight: 600, margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {item.name}
+                </p>
+                <p style={{ color: '#7a5f58', fontSize: '12px', margin: '0 0 6px' }}>{item.category}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    background: status.bg, borderRadius: '8px',
+                    padding: '3px 8px', color: status.color,
+                    fontSize: '11px', fontWeight: 600
+                  }}>{status.label}</span>
+                  {inv?.trackStock && inv?.stock > 0 && (
+                    <div style={{
+                      flex: 1, maxWidth: '100px', height: '4px',
+                      background: '#2a2a2a', borderRadius: '2px'
+                    }}>
+                      <div style={{
+                        height: '100%', borderRadius: '2px',
+                        background: inv.stock <= inv.lowStockAt
+                          ? '#ffaa40' : '#4ade80',
+                        width: `${Math.min((inv.stock / (inv.lowStockAt * 3)) * 100, 100)}%`
+                      }} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                {inv?.trackStock && (
+                  <button
+                    onClick={() => quickRestock(item.id, 10)}
+                    style={{
+                      background: 'rgba(74,222,128,0.1)',
+                      border: '1px solid rgba(74,222,128,0.2)',
+                      color: '#4ade80', padding: '6px 10px',
+                      borderRadius: '8px', fontSize: '12px',
+                      cursor: 'pointer', fontWeight: 600
+                    }}
+                  >+10</button>
+                )}
+                <button
+                  onClick={() => setEditItem(item)}
+                  style={{
+                    background: 'rgba(255,107,53,0.1)',
+                    border: '1px solid rgba(255,107,53,0.2)',
+                    color: '#ff8c69', padding: '6px 10px',
+                    borderRadius: '8px', fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >⚙️ Set</button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Edit modal */}
+      {editItem && (
+        <StockModal
+          item={editItem}
+          headers={headers}
+          onClose={() => setEditItem(null)}
+          onSave={() => { setEditItem(null); onRefresh() }}
+        />
+      )}
+    </div>
+  )
+}
+
+function StockModal({ item, headers, onClose, onSave }) {
+  const inv = item.inventory
+  const [form, setForm] = useState({
+    stock: inv?.stock || 0,
+    lowStockAt: inv?.lowStockAt || 10,
+    trackStock: inv?.trackStock || false,
+  })
+  const [loading, setLoading] = useState(false)
+
+  async function save() {
+    setLoading(true)
+    try {
+      await axios.patch(
+        `${API}/api/admin/inventory/${item.id}`,
+        form, { headers }
+      )
+      onSave()
+    } catch (e) {
+      alert(e.response?.data?.error || 'Error updating stock')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+    }}>
+      <div style={{
+        background: 'linear-gradient(145deg, #1a1220, #201628)',
+        border: '1px solid rgba(255,107,53,0.25)',
+        borderRadius: '20px', padding: '28px',
+        width: '100%', maxWidth: '360px'
+      }}>
+        <h3 style={{ color: '#fff5f0', fontSize: '18px', fontWeight: 700, marginBottom: '6px' }}>
+          📦 {item.name}
+        </h3>
+        <p style={{ color: '#7a5f58', fontSize: '13px', marginBottom: '20px' }}>
+          Set stock level and tracking
+        </p>
+
+        {/* Track stock toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div>
+            <p style={{ color: '#c8a49a', fontSize: '14px', fontWeight: 600, margin: 0 }}>Track Stock</p>
+            <p style={{ color: '#7a5f58', fontSize: '12px', margin: '2px 0 0' }}>Auto-disable when stock hits 0</p>
+          </div>
+          <button
+            onClick={() => setForm(p => ({ ...p, trackStock: !p.trackStock }))}
+            style={{
+              width: '48px', height: '26px', borderRadius: '13px', border: 'none',
+              background: form.trackStock ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)' : '#2a2a2a',
+              cursor: 'pointer', position: 'relative', transition: 'background 0.2s'
+            }}
+          >
+            <div style={{
+              width: '20px', height: '20px', borderRadius: '50%', background: '#fff',
+              position: 'absolute', top: '3px',
+              left: form.trackStock ? '25px' : '3px',
+              transition: 'left 0.2s'
+            }} />
+          </button>
+        </div>
+
+        {form.trackStock && (
+          <>
+            {/* Current stock */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ color: '#c8a49a', fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                Current Stock
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button onClick={() => setForm(p => ({ ...p, stock: Math.max(0, p.stock - 10) }))} style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)',
+                  color: '#ff8c69', fontSize: '18px', cursor: 'pointer'
+                }}>−</button>
+                <input type="number" value={form.stock}
+                  onChange={e => setForm(p => ({ ...p, stock: Number(e.target.value) }))}
+                  style={{
+                    flex: 1, background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,107,53,0.2)', borderRadius: '10px',
+                    padding: '10px', color: '#fff5f0', fontSize: '18px',
+                    fontWeight: 700, textAlign: 'center', outline: 'none'
+                  }} />
+                <button onClick={() => setForm(p => ({ ...p, stock: p.stock + 10 }))} style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)',
+                  color: '#ff8c69', fontSize: '18px', cursor: 'pointer'
+                }}>+</button>
+              </div>
+            </div>
+
+            {/* Low stock threshold */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ color: '#c8a49a', fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                Low Stock Alert at
+              </label>
+              <input type="number" value={form.lowStockAt}
+                onChange={e => setForm(p => ({ ...p, lowStockAt: Number(e.target.value) }))}
+                style={{
+                  width: '100%', background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,107,53,0.2)', borderRadius: '10px',
+                  padding: '11px 14px', color: '#fff5f0', fontSize: '14px',
+                  outline: 'none', boxSizing: 'border-box'
+                }} />
+              <p style={{ color: '#7a5f58', fontSize: '11px', margin: '4px 0 0' }}>
+                Alert shows when stock drops to or below this number
+              </p>
+            </div>
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={save} disabled={loading} style={{
+            flex: 1, background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+            border: 'none', color: '#fff', padding: '14px',
+            borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+            cursor: 'pointer', opacity: loading ? 0.6 : 1
+          }}>{loading ? 'Saving...' : 'Save'}</button>
           <button onClick={onClose} style={{
             flex: 1, background: 'transparent',
             border: '1px solid rgba(255,107,53,0.2)',

@@ -4,6 +4,7 @@ import { redis } from '../lib/redis.js';
 import { io } from '../index.js'
 import { upload, cloudinary } from '../lib/cloudinary.js'
 import { sendOrderReady } from '../lib/whatsapp.js'
+import { getInventory, setStock, getLowStockItems } from '../services/inventoryService.js'
 
 const router = Router();
 
@@ -368,6 +369,62 @@ router.get('/forecast', adminAuth, async (req, res) => {
         ? Math.round(orders.reduce((s, o) => s + Number(o.totalAmount), 0) / orders.length)
         : 0
     })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get all inventory
+router.get('/inventory', adminAuth, async (req, res) => {
+  try {
+    const inventory = await getInventory()
+    res.json(inventory)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get low stock alerts
+router.get('/inventory/alerts', adminAuth, async (req, res) => {
+  try {
+    const items = await getLowStockItems()
+    res.json(items)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Update stock for an item
+router.patch('/inventory/:menuItemId', adminAuth, async (req, res) => {
+  try {
+    const { stock, lowStockAt, trackStock } = req.body
+    const inventory = await setStock(
+      req.params.menuItemId,
+      Number(stock),
+      Number(lowStockAt || 10),
+      Boolean(trackStock)
+    )
+    res.json(inventory)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Restock item
+router.post('/inventory/:menuItemId/restock', adminAuth, async (req, res) => {
+  try {
+    const { amount } = req.body
+    const existing = await prisma.inventory.findUnique({
+      where: { menuItemId: req.params.menuItemId }
+    })
+    const newStock = (existing?.stock || 0) + Number(amount)
+    const inventory = await setStock(
+      req.params.menuItemId,
+      newStock,
+      existing?.lowStockAt || 10,
+      existing?.trackStock || true
+    )
+    res.json(inventory)
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

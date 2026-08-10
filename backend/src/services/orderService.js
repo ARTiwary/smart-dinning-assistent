@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { io } from '../index.js';
 import { sendOrderConfirmation } from '../lib/whatsapp.js';
+import { deductStock } from './inventoryService.js';
 
 export async function placeOrder(sessionId, customerName, customerPhone) {
   const cartItems = await prisma.cartItem.findMany({
@@ -31,6 +32,15 @@ export async function placeOrder(sessionId, customerName, customerPhone) {
     },
     include: { orderItems: { include: { menuItem: true } } }
   });
+
+  // Deduct inventory stock for each ordered item
+  for (const item of cartItems) {
+    try {
+      await deductStock(item.menuItemId, item.quantity);
+    } catch (e) {
+      console.error('Stock deduct error:', e.message);
+    }
+  }
 
   // Send WhatsApp confirmation right after order creation
   try {
