@@ -5,6 +5,7 @@ import { io } from '../index.js'
 import { upload, cloudinary } from '../lib/cloudinary.js'
 import { sendOrderReady } from '../lib/whatsapp.js'
 import { getInventory, setStock, getLowStockItems } from '../services/inventoryService.js'
+import { loginStaff, createStaff, getAllStaff, updateStaff, deleteStaff, PERMISSIONS } from '../services/staffService.js'
 
 const router = Router();
 
@@ -425,6 +426,77 @@ router.post('/inventory/:menuItemId/restock', adminAuth, async (req, res) => {
       existing?.trackStock || true
     )
     res.json(inventory)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Staff login
+router.post('/staff/login', async (req, res) => {
+  try {
+    const { email, password } = req.body
+    const staff = await loginStaff(email, password)
+    res.json(staff)
+  } catch (e) {
+    res.status(401).json({ error: e.message })
+  }
+})
+
+// Get all staff (owner/manager only)
+router.get('/staff', adminAuth, async (req, res) => {
+  try {
+    const staff = await getAllStaff()
+    res.json(staff)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Create staff member
+router.post('/staff', adminAuth, async (req, res) => {
+  try {
+    const member = await createStaff(req.body)
+    const { password, ...safe } = member
+    res.json(safe)
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data?.error || e.message })
+  }
+})
+
+// Update staff
+router.patch('/staff/:id', adminAuth, async (req, res) => {
+  try {
+    const updated = await updateStaff(req.params.id, req.body)
+    const { password, ...safe } = updated
+    res.json(safe)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Delete staff
+router.delete('/staff/:id', adminAuth, async (req, res) => {
+  try {
+    await deleteStaff(req.params.id)
+    res.json({ success: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Seed default owner
+router.post('/staff/seed-owner', async (req, res) => {
+  try {
+    const existing = await prisma.staff.findUnique({ where: { email: 'owner@spicegarden.com' } })
+    if (existing) return res.json({ message: 'Owner already exists' })
+    const owner = await createStaff({
+      name: 'Owner',
+      email: 'owner@spicegarden.com',
+      password: 'admin123',
+      role: 'owner'
+    })
+    const { password, ...safe } = owner
+    res.json(safe)
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

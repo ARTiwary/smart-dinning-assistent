@@ -168,3 +168,14 @@ model Inventory {
   updatedAt   DateTime @updatedAt
   menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 }
+
+model Staff {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        String   @default("cashier") // owner | manager | cashier | kitchen
+  active      Boolean  @default(true)
+  lastLogin   DateTime?
+  createdAt   DateTime @default(now())
+}

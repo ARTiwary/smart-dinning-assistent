@@ -21,6 +21,20 @@ const STATUS_COLORS = {
 
 const STATUS_FLOW = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
+const ALL_TABS = [
+  { id: 'dashboard', label: '📊 Dashboard', permission: 'dashboard' },
+  { id: 'analytics', label: '📈 Analytics', permission: 'analytics' },
+  { id: 'forecast', label: '🔮 Forecast', permission: 'forecast' },
+  { id: 'loyalty', label: '💎 Loyalty', permission: 'analytics' },
+  { id: 'orders', label: '🧾 Orders', permission: 'orders' },
+  { id: 'reservations', label: '📅 Reservations', permission: 'reservations' },
+  { id: 'tables', label: '🪑 Tables & QR', permission: 'tables' },
+  { id: 'menu', label: '🍽️ Menu', permission: 'menu' },
+  { id: 'coupons', label: '🎟️ Coupons', permission: 'coupons' },
+  { id: 'inventory', label: '📦 Inventory', permission: 'inventory' },
+  { id: 'staff', label: '👥 Staff', permission: 'staff' },
+]
+
 export default function AdminPanel() {
   const [tab, setTab] = useState('dashboard')
   const [orders, setOrders] = useState([])
@@ -37,21 +51,36 @@ export default function AdminPanel() {
   const [tableCount, setTableCount] = useState(10)
   const [loading, setLoading] = useState(true)
   const [authed, setAuthed] = useState(false)
-  const [password, setPassword] = useState('')
+  const [staffSession, setStaffSession] = useState(null)
   const [selectedOrder, setSelectedOrder] = useState(null)
 
-  function login() {
-    if (password === 'admin123') {
+  useEffect(() => {
+    const stored = localStorage.getItem('staff_session')
+    if (stored) {
+      const session = JSON.parse(stored)
+      setStaffSession(session)
       setAuthed(true)
-      localStorage.setItem('admin_authed', '1')
-    } else {
-      alert('Wrong password')
     }
+  }, [])
+
+  function handleLogin() {
+    const stored = localStorage.getItem('staff_session')
+    if (stored) setStaffSession(JSON.parse(stored))
+    setAuthed(true)
   }
 
-  useEffect(() => {
-    if (localStorage.getItem('admin_authed') === '1') setAuthed(true)
-  }, [])
+  function logout() {
+    localStorage.removeItem('staff_session')
+    localStorage.removeItem('admin_authed')
+    setAuthed(false)
+    setStaffSession(null)
+  }
+
+  // Helper to check permission
+  function can(permission) {
+    if (!staffSession) return false
+    return staffSession.permissions?.includes(permission)
+  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -160,7 +189,7 @@ export default function AdminPanel() {
     fetchData()
   }
 
-  if (!authed) return <LoginScreen password={password} setPassword={setPassword} onLogin={login} />
+  if (!authed) return <LoginScreen onLogin={handleLogin} />
 
   return (
     <div style={{ minHeight: '100vh', background: '#0d0a0f', fontFamily: 'var(--font-body)' }}>
@@ -182,10 +211,30 @@ export default function AdminPanel() {
           <p style={{ color: '#7a5f58', fontSize: '12px', marginTop: '2px' }}>Restaurant Management Dashboard</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {staffSession && (
+            <div style={{
+              background: 'rgba(255,107,53,0.1)',
+              border: '1px solid rgba(255,107,53,0.2)',
+              borderRadius: '20px', padding: '6px 12px',
+              display: 'flex', alignItems: 'center', gap: '8px'
+            }}>
+              <span style={{ fontSize: '14px' }}>
+                {staffSession.role === 'owner' ? '👑' :
+                 staffSession.role === 'manager' ? '🎯' :
+                 staffSession.role === 'cashier' ? '💳' : '🍳'}
+              </span>
+              <span style={{ color: '#ff8c69', fontSize: '13px', fontWeight: 600 }}>
+                {staffSession.name}
+              </span>
+              <span style={{ color: '#7a5f58', fontSize: '11px', textTransform: 'capitalize' }}>
+                {staffSession.role}
+              </span>
+            </div>
+          )}
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px #4ade80' }} />
           <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: 600 }}>LIVE</span>
           <button
-            onClick={() => { localStorage.removeItem('admin_authed'); setAuthed(false) }}
+            onClick={logout}
             style={{ marginLeft: '12px', background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.2)', color: '#ff6b6b', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontSize: '12px' }}
           >Logout</button>
         </div>
@@ -193,18 +242,7 @@ export default function AdminPanel() {
 
       {/* Navigation Tabs */}
       <div style={{ display: 'flex', gap: '4px', padding: '16px 24px 0', borderBottom: '1px solid rgba(255,107,53,0.1)', overflowX: 'auto' }}>
-        {[
-          { id: 'dashboard', label: '📊 Dashboard' },
-          { id: 'analytics', label: '📈 Analytics' },
-          { id: 'forecast', label: '🔮 Forecast' },
-          { id: 'loyalty', label: '💎 Loyalty' },
-          { id: 'orders', label: '🧾 Orders' },
-          { id: 'reservations', label: '📅 Reservations' },
-          { id: 'tables', label: '🪑 Tables & QR' },
-          { id: 'menu', label: '🍽️ Menu' },
-          { id: 'coupons', label: '🎟️ Coupons' },
-          { id: 'inventory', label: '📦 Inventory' },
-        ].map(t => (
+        {ALL_TABS.filter(t => can(t.permission)).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '10px 20px', border: 'none', cursor: 'pointer',
             fontSize: '14px', fontWeight: 600, fontFamily: 'var(--font-body)',
@@ -251,6 +289,9 @@ export default function AdminPanel() {
                 onRefresh={fetchInventory}
                 headers={headers}
               />
+            )}
+            {tab === 'staff' && can('staff') && (
+              <StaffManager headers={headers} />
             )}
           </>
         )}
@@ -1114,40 +1155,129 @@ function Analytics({ orders, stats }) {
   )
 }
 
-function LoginScreen({ password, setPassword, onLogin }) {
+function LoginScreen({ onLogin }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [useAdminKey, setUseAdminKey] = useState(false)
+  const [adminKey, setAdminKey] = useState('')
+
+  async function handleLogin() {
+    setLoading(true)
+    setError('')
+    try {
+      if (useAdminKey) {
+        // Legacy admin key login
+        if (adminKey === 'admin123') {
+          localStorage.setItem('staff_session', JSON.stringify({
+            name: 'Admin', role: 'owner',
+            permissions: ['dashboard','orders','tables','menu','inventory',
+              'coupons','reservations','analytics','forecast','staff','kitchen']
+          }))
+          onLogin()
+        } else {
+          setError('Invalid admin key')
+        }
+      } else {
+        // Staff login
+        const { data } = await axios.post(`${API}/api/admin/staff/login`, { email, password })
+        localStorage.setItem('staff_session', JSON.stringify(data))
+        onLogin()
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || 'Invalid credentials')
+    }
+    setLoading(false)
+  }
+
   return (
     <div style={{
       minHeight: '100vh', background: '#0d0a0f',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px'
     }}>
       <div style={{
         background: 'linear-gradient(145deg, #1a1220, #201628)',
         border: '1px solid rgba(255,107,53,0.2)',
         borderRadius: '24px', padding: '40px',
-        width: '100%', maxWidth: '360px', textAlign: 'center',
+        width: '100%', maxWidth: '380px',
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔐</div>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 700, color: '#fff5f0', marginBottom: '8px' }}>Admin Login</h2>
-        <p style={{ color: '#7a5f58', fontSize: '13px', marginBottom: '24px' }}>Spice Garden Dashboard</p>
-        <input
-          type="password"
-          placeholder="Enter admin password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && onLogin()}
-          style={{
-            width: '100%', background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,107,53,0.2)', borderRadius: '12px',
-            padding: '13px 16px', color: '#fff5f0', fontSize: '14px',
-            fontFamily: 'sans-serif', outline: 'none', marginBottom: '16px', boxSizing: 'border-box',
-          }}
-        />
-        <button onClick={onLogin} style={{
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '12px' }}>🍛</div>
+          <h2 style={{
+            background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            fontSize: '24px', fontWeight: 800, margin: '0 0 4px'
+          }}>Spice Garden</h2>
+          <p style={{ color: '#7a5f58', fontSize: '13px', margin: 0 }}>Staff Login</p>
+        </div>
+
+        {error && (
+          <div style={{
+            background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.3)',
+            borderRadius: '10px', padding: '10px 14px',
+            color: '#ff6b6b', fontSize: '13px', marginBottom: '16px'
+          }}>⚠ {error}</div>
+        )}
+
+        {/* Toggle login type */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+          <button onClick={() => setUseAdminKey(false)} style={{
+            flex: 1, padding: '8px', borderRadius: '10px', border: 'none',
+            cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+            background: !useAdminKey ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)' : 'rgba(255,255,255,0.04)',
+            color: !useAdminKey ? '#fff' : '#7a5f58'
+          }}>👤 Staff Login</button>
+          <button onClick={() => setUseAdminKey(true)} style={{
+            flex: 1, padding: '8px', borderRadius: '10px', border: 'none',
+            cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+            background: useAdminKey ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)' : 'rgba(255,255,255,0.04)',
+            color: useAdminKey ? '#fff' : '#7a5f58'
+          }}>🔑 Admin Key</button>
+        </div>
+
+        {useAdminKey ? (
+          <input type="password" placeholder="Admin key"
+            value={adminKey} onChange={e => setAdminKey(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+            style={{
+              width: '100%', background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,107,53,0.2)', borderRadius: '12px',
+              padding: '13px 16px', color: '#fff5f0', fontSize: '14px',
+              outline: 'none', marginBottom: '14px', boxSizing: 'border-box'
+            }} />
+        ) : (
+          <>
+            <input type="email" placeholder="Email address"
+              value={email} onChange={e => setEmail(e.target.value)}
+              style={{
+                width: '100%', background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,107,53,0.2)', borderRadius: '12px',
+                padding: '13px 16px', color: '#fff5f0', fontSize: '14px',
+                outline: 'none', marginBottom: '12px', boxSizing: 'border-box'
+              }} />
+            <input type="password" placeholder="Password"
+              value={password} onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              style={{
+                width: '100%', background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,107,53,0.2)', borderRadius: '12px',
+                padding: '13px 16px', color: '#fff5f0', fontSize: '14px',
+                outline: 'none', marginBottom: '14px', boxSizing: 'border-box'
+              }} />
+          </>
+        )}
+
+        <button onClick={handleLogin} disabled={loading} style={{
           width: '100%', background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
           border: 'none', color: '#fff', padding: '15px', borderRadius: '14px',
           fontSize: '15px', fontWeight: 700, cursor: 'pointer',
-        }}>Login →</button>
-        <p style={{ color: '#7a5f58', fontSize: '11px', marginTop: '12px' }}>Default password: admin123</p>
+          opacity: loading ? 0.7 : 1, marginBottom: '12px'
+        }}>{loading ? '⏳ Logging in...' : 'Login →'}</button>
+
+        <p style={{ color: '#7a5f58', fontSize: '11px', textAlign: 'center' }}>
+          Default: owner@spicegarden.com / admin123
+        </p>
       </div>
     </div>
   )
@@ -2172,6 +2302,267 @@ function StockModal({ item, headers, onClose, onSave }) {
           }}>Cancel</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function StaffManager({ headers }) {
+  const [staff, setStaff] = useState([])
+  const [addOpen, setAddOpen] = useState(false)
+  const [editItem, setEditItem] = useState(null)
+  const [form, setForm] = useState({ name:'', email:'', password:'', role:'cashier', active:true })
+  const [loading, setLoading] = useState(false)
+
+  const ROLES = [
+    { id: 'owner', label: 'Owner', icon: '👑', desc: 'Full access to everything' },
+    { id: 'manager', label: 'Manager', icon: '🎯', desc: 'All except staff management' },
+    { id: 'cashier', label: 'Cashier', icon: '💳', desc: 'Orders, tables, reservations' },
+    { id: 'kitchen', label: 'Kitchen', icon: '🍳', desc: 'Kitchen display and orders only' },
+  ]
+
+  async function fetchStaff() {
+    try {
+      const { data } = await axios.get(`${API}/api/admin/staff`, { headers })
+      setStaff(data)
+    } catch (e) {}
+  }
+
+  useEffect(() => { fetchStaff() }, [])
+
+  async function seedOwner() {
+    try {
+      await axios.post(`${API}/api/admin/staff/seed-owner`, {}, { headers })
+      fetchStaff()
+      alert('Owner account created: owner@spicegarden.com / admin123')
+    } catch (e) {}
+  }
+
+  async function save() {
+    setLoading(true)
+    try {
+      if (editItem) {
+        await axios.patch(`${API}/api/admin/staff/${editItem.id}`, form, { headers })
+      } else {
+        await axios.post(`${API}/api/admin/staff`, form, { headers })
+      }
+      setAddOpen(false); setEditItem(null)
+      setForm({ name:'', email:'', password:'', role:'cashier', active:true })
+      fetchStaff()
+    } catch (e) {
+      alert(e.response?.data?.error || 'Error saving staff')
+    }
+    setLoading(false)
+  }
+
+  async function toggleActive(id, active) {
+    await axios.patch(`${API}/api/admin/staff/${id}`, { active: !active }, { headers })
+    fetchStaff()
+  }
+
+  async function deleteStaffMember(id, name) {
+    if (!confirm(`Remove ${name} from staff?`)) return
+    await axios.delete(`${API}/api/admin/staff/${id}`, { headers })
+    fetchStaff()
+  }
+
+  const inputStyle = {
+    width: '100%', background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,107,53,0.2)', borderRadius: '10px',
+    padding: '11px 14px', color: '#fff5f0', fontSize: '14px',
+    outline: 'none', marginBottom: '12px', boxSizing: 'border-box',
+    fontFamily: 'sans-serif'
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div>
+          <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, margin: 0 }}>Staff Management</h3>
+          <p style={{ color: '#7a5f58', fontSize: '13px', margin: '4px 0 0' }}>
+            {staff.length} team members
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {staff.length === 0 && (
+            <button onClick={seedOwner} style={{
+              background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)',
+              color: '#ffd166', padding: '10px 16px', borderRadius: '12px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer'
+            }}>🌱 Seed Owner</button>
+          )}
+          <button onClick={() => { setEditItem(null); setAddOpen(true) }} style={{
+            background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+            border: 'none', color: '#fff', padding: '10px 20px',
+            borderRadius: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+          }}>+ Add Staff</button>
+        </div>
+      </div>
+
+      {/* Role legend */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '20px' }}>
+        {ROLES.map(role => (
+          <div key={role.id} style={{
+            background: 'rgba(255,107,53,0.05)', border: '1px solid rgba(255,107,53,0.1)',
+            borderRadius: '12px', padding: '10px 12px',
+            display: 'flex', alignItems: 'center', gap: '8px'
+          }}>
+            <span style={{ fontSize: '18px' }}>{role.icon}</span>
+            <div>
+              <p style={{ color: '#fff5f0', fontSize: '13px', fontWeight: 600, margin: 0 }}>{role.label}</p>
+              <p style={{ color: '#7a5f58', fontSize: '11px', margin: 0 }}>{role.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Staff list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {staff.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#7a5f58' }}>
+            <p style={{ fontSize: '32px', marginBottom: '8px' }}>👥</p>
+            <p>No staff yet. Click "Seed Owner" to create the first account.</p>
+          </div>
+        ) : staff.map(member => {
+          const role = ROLES.find(r => r.id === member.role) || ROLES[2]
+          return (
+            <div key={member.id} style={{
+              background: 'linear-gradient(145deg, #1a1220, #201628)',
+              border: '1px solid rgba(255,107,53,0.1)',
+              borderRadius: '14px', padding: '14px',
+              display: 'flex', alignItems: 'center', gap: '12px',
+              opacity: member.active ? 1 : 0.5
+            }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, rgba(255,107,53,0.2), rgba(255,107,157,0.15))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '22px', flexShrink: 0
+              }}>{role.icon}</div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                  <p style={{ color: '#fff5f0', fontSize: '14px', fontWeight: 700, margin: 0 }}>
+                    {member.name}
+                  </p>
+                  <span style={{
+                    background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)',
+                    color: '#ff8c69', fontSize: '10px', padding: '2px 6px', borderRadius: '6px',
+                    textTransform: 'capitalize'
+                  }}>{member.role}</span>
+                  {!member.active && (
+                    <span style={{
+                      background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.2)',
+                      color: '#ff6b6b', fontSize: '10px', padding: '2px 6px', borderRadius: '6px'
+                    }}>Inactive</span>
+                  )}
+                </div>
+                <p style={{ color: '#7a5f58', fontSize: '12px', margin: '0 0 2px' }}>{member.email}</p>
+                {member.lastLogin && (
+                  <p style={{ color: '#555', fontSize: '11px', margin: 0 }}>
+                    Last login: {new Date(member.lastLogin).toLocaleDateString('en-IN')}
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                <button onClick={() => toggleActive(member.id, member.active)} style={{
+                  background: member.active ? 'rgba(74,222,128,0.1)' : 'rgba(255,100,100,0.1)',
+                  border: `1px solid ${member.active ? 'rgba(74,222,128,0.3)' : 'rgba(255,100,100,0.2)'}`,
+                  color: member.active ? '#4ade80' : '#ff6b6b',
+                  padding: '5px 10px', borderRadius: '8px',
+                  fontSize: '11px', fontWeight: 600, cursor: 'pointer'
+                }}>{member.active ? '✓ Active' : '✗ Inactive'}</button>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => { setEditItem(member); setForm({ name: member.name, email: member.email, password: '', role: member.role, active: member.active }); setAddOpen(true) }} style={{
+                    flex: 1, background: 'rgba(255,107,53,0.1)',
+                    border: '1px solid rgba(255,107,53,0.2)',
+                    color: '#ff8c69', padding: '5px',
+                    borderRadius: '8px', fontSize: '12px', cursor: 'pointer'
+                  }}>✏️</button>
+                  <button onClick={() => deleteStaffMember(member.id, member.name)} style={{
+                    flex: 1, background: 'rgba(255,100,100,0.1)',
+                    border: '1px solid rgba(255,100,100,0.2)',
+                    color: '#ff6b6b', padding: '5px',
+                    borderRadius: '8px', fontSize: '12px', cursor: 'pointer'
+                  }}>🗑️</button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Add/Edit Modal */}
+      {addOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: '1px solid rgba(255,107,53,0.25)',
+            borderRadius: '20px', padding: '28px',
+            width: '100%', maxWidth: '400px'
+          }}>
+            <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, marginBottom: '20px' }}>
+              {editItem ? '✏️ Edit Staff' : '+ Add Staff Member'}
+            </h3>
+
+            <input placeholder="Full name" value={form.name}
+              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              style={inputStyle} />
+
+            <input type="email" placeholder="Email address" value={form.email}
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+              style={inputStyle} />
+
+            <input type="password" placeholder={editItem ? "New password (leave blank to keep)" : "Password"}
+              value={form.password}
+              onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+              style={inputStyle} />
+
+            {/* Role selector */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ color: '#c8a49a', fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '10px' }}>
+                Role
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                {ROLES.map(role => (
+                  <button key={role.id} onClick={() => setForm(p => ({ ...p, role: role.id }))} style={{
+                    padding: '10px', borderRadius: '12px', border: 'none',
+                    cursor: 'pointer', textAlign: 'left',
+                    background: form.role === role.id
+                      ? 'rgba(255,107,53,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: form.role === role.id
+                      ? '1px solid rgba(255,107,53,0.4)' : '1px solid rgba(255,255,255,0.06)',
+                  }}>
+                    <p style={{ color: form.role === role.id ? '#ff8c69' : '#c8a49a', fontSize: '13px', fontWeight: 700, margin: '0 0 2px' }}>
+                      {role.icon} {role.label}
+                    </p>
+                    <p style={{ color: '#555', fontSize: '10px', margin: 0 }}>{role.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={save} disabled={loading} style={{
+                flex: 1, background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                border: 'none', color: '#fff', padding: '14px',
+                borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+                cursor: 'pointer', opacity: loading ? 0.6 : 1
+              }}>{loading ? 'Saving...' : editItem ? 'Update' : 'Add Staff'}</button>
+              <button onClick={() => { setAddOpen(false); setEditItem(null) }} style={{
+                flex: 1, background: 'transparent',
+                border: '1px solid rgba(255,107,53,0.2)',
+                color: '#7a5f58', padding: '14px',
+                borderRadius: '12px', fontSize: '14px', cursor: 'pointer'
+              }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
