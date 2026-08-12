@@ -6,12 +6,18 @@ const router = Router();
 const prisma = new PrismaClient();
 
 router.get('/:tableId/session', async (req, res) => {
-  try {
-    const session = await getOrCreateSession(req.params.tableId);
-    res.json(session);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const { restaurantSlug } = req.query
+  let restaurantId = null
+
+  if (restaurantSlug) {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug: restaurantSlug }
+    })
+    restaurantId = restaurant?.id || null
   }
+
+  const session = await getOrCreateSession(req.params.tableId, restaurantId)
+  res.json(session)
 });
 
 router.patch('/:sessionId/phone', async (req, res) => {

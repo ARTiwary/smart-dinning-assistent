@@ -27,6 +27,8 @@ model MenuItem {
   createdAt   DateTime @default(now())
   translations MenuTranslation[]
   inventory   Inventory?
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
 }
 
 model Session {
@@ -40,6 +42,8 @@ model Session {
   createdAt           DateTime   @default(now())
   expiresAt           DateTime
   customerPhone String?
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
 }
 
 model CartItem {
@@ -178,4 +182,19 @@ model Staff {
   active      Boolean  @default(true)
   lastLogin   DateTime?
   createdAt   DateTime @default(now())
+}
+
+model Restaurant {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  address     String?
+  phone       String?
+  logo        String?
+  theme       Json      @default("{}")
+  active      Boolean   @default(true)
+  ownerId     String?
+  createdAt   DateTime  @default(now())
+  sessions    Session[]
+  menuItems   MenuItem[]
 }

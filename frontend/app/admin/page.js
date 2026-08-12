@@ -33,6 +33,7 @@ const ALL_TABS = [
   { id: 'coupons', label: '🎟️ Coupons', permission: 'coupons' },
   { id: 'inventory', label: '📦 Inventory', permission: 'inventory' },
   { id: 'staff', label: '👥 Staff', permission: 'staff' },
+  { id: 'restaurants', label: '🏪 Branches', permission: 'staff' },
 ]
 
 export default function AdminPanel() {
@@ -53,6 +54,7 @@ export default function AdminPanel() {
   const [authed, setAuthed] = useState(false)
   const [staffSession, setStaffSession] = useState(null)
   const [selectedOrder, setSelectedOrder] = useState(null)
+  const [restaurants, setRestaurants] = useState([])
 
   useEffect(() => {
     const stored = localStorage.getItem('staff_session')
@@ -150,6 +152,13 @@ export default function AdminPanel() {
     }
   }
 
+  async function fetchRestaurants() {
+  try {
+    const { data } = await axios.get(`${API}/api/admin/restaurants`, { headers })
+    setRestaurants(data)
+  } catch (e) {}
+}
+
   useEffect(() => {
     if (!authed) return
     fetchData()
@@ -158,6 +167,7 @@ export default function AdminPanel() {
     fetchCoupons()
     fetchForecast()
     fetchInventory()
+    fetchRestaurants()
     const interval = setInterval(() => {
       fetchData()
       fetchReservations()
@@ -165,6 +175,7 @@ export default function AdminPanel() {
       fetchCoupons()
       fetchForecast()
       fetchInventory()
+      fetchRestaurants()
     }, 10000)
     return () => clearInterval(interval)
   }, [authed, fetchData])
@@ -293,6 +304,9 @@ export default function AdminPanel() {
             {tab === 'staff' && can('staff') && (
               <StaffManager headers={headers} />
             )}
+            {tab === 'restaurants' && can('staff') && (
+              <RestaurantManager restaurants={restaurants} onRefresh={fetchRestaurants} headers={headers} />
+              )}
           </>
         )}
       </div>
@@ -300,6 +314,258 @@ export default function AdminPanel() {
       {/* Order detail modal */}
       {selectedOrder && (
         <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatusChange={updateStatus} />
+      )}
+    </div>
+  )
+}
+
+function RestaurantManager({ restaurants, onRefresh, headers }) {
+  const [addOpen, setAddOpen] = useState(false)
+  const [editItem, setEditItem] = useState(null)
+  const [branchStats, setBranchStats] = useState({})
+  const [form, setForm] = useState({
+    name: '', slug: '', address: '', phone: '', logo: '', active: true
+  })
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    restaurants.forEach(async r => {
+      try {
+        const { data } = await axios.get(`${API}/api/admin/restaurants/${r.id}/stats`, { headers })
+        setBranchStats(prev => ({ ...prev, [r.id]: data }))
+      } catch (e) {}
+    })
+  }, [restaurants])
+
+  async function save() {
+    if (!form.name || !form.slug) return alert('Name and slug required')
+    setLoading(true)
+    try {
+      if (editItem) {
+        await axios.patch(`${API}/api/admin/restaurants/${editItem.id}`, form, { headers })
+      } else {
+        await axios.post(`${API}/api/admin/restaurants`, form, { headers })
+      }
+      setAddOpen(false); setEditItem(null)
+      setForm({ name: '', slug: '', address: '', phone: '', logo: '', active: true })
+      onRefresh()
+    } catch (e) {
+      alert(e.response?.data?.error || 'Error saving restaurant')
+    }
+    setLoading(false)
+  }
+
+  const inputStyle = {
+    width: '100%', background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,107,53,0.2)', borderRadius: '10px',
+    padding: '11px 14px', color: '#fff5f0', fontSize: '14px',
+    outline: 'none', marginBottom: '12px', boxSizing: 'border-box',
+    fontFamily: 'sans-serif'
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div>
+          <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, margin: 0 }}>
+            Restaurant Branches
+          </h3>
+          <p style={{ color: '#7a5f58', fontSize: '13px', margin: '4px 0 0' }}>
+            {restaurants.length} branch{restaurants.length !== 1 ? 'es' : ''}
+          </p>
+        </div>
+        <button onClick={() => { setEditItem(null); setAddOpen(true) }} style={{
+          background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+          border: 'none', color: '#fff', padding: '10px 20px',
+          borderRadius: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+        }}>+ Add Branch</button>
+      </div>
+
+      {/* Branch cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+        {restaurants.length === 0 ? (
+          <div style={{
+            gridColumn: '1 / -1', textAlign: 'center',
+            padding: '40px', color: '#7a5f58'
+          }}>
+            <p style={{ fontSize: '32px', marginBottom: '8px' }}>🏪</p>
+            <p>No branches yet. Add your first restaurant!</p>
+          </div>
+        ) : restaurants.map(r => {
+          const stats = branchStats[r.id]
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+          return (
+            <div key={r.id} style={{
+              background: 'linear-gradient(145deg, #1a1220, #201628)',
+              border: `1px solid ${r.active ? 'rgba(255,107,53,0.2)' : 'rgba(255,255,255,0.05)'}`,
+              borderRadius: '20px', padding: '20px',
+              opacity: r.active ? 1 : 0.6
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '24px', flexShrink: 0, overflow: 'hidden'
+                }}>
+                  {r.logo
+                    ? <img src={r.logo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : '🍛'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ color: '#fff5f0', fontWeight: 700, fontSize: '16px', margin: 0 }}>{r.name}</p>
+                  <p style={{ color: '#7a5f58', fontSize: '12px', margin: '2px 0 0' }}>/{r.slug}</p>
+                </div>
+                <div style={{
+                  width: '10px', height: '10px', borderRadius: '50%',
+                  background: r.active ? '#4ade80' : '#555',
+                  boxShadow: r.active ? '0 0 8px #4ade80' : 'none'
+                }} />
+              </div>
+
+              {/* Stats */}
+              {stats && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
+                  {[
+                    { label: "Today's Orders", value: stats.todayOrders, color: '#ff8c69' },
+                    { label: 'Revenue', value: `₹${Math.round(stats.todayRevenue)}`, color: '#4ade80' },
+                    { label: 'Active Tables', value: stats.activeTables, color: '#60a5fa' },
+                  ].map(s => (
+                    <div key={s.label} style={{
+                      background: 'rgba(255,107,53,0.05)', borderRadius: '10px', padding: '8px', textAlign: 'center'
+                    }}>
+                      <p style={{ color: s.color, fontWeight: 700, fontSize: '16px', margin: '0 0 2px' }}>{s.value}</p>
+                      <p style={{ color: '#555', fontSize: '9px', margin: 0 }}>{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Info */}
+              {r.address && (
+                <p style={{ color: '#7a5f58', fontSize: '12px', marginBottom: '6px' }}>
+                  📍 {r.address}
+                </p>
+              )}
+              {r.phone && (
+                <p style={{ color: '#7a5f58', fontSize: '12px', marginBottom: '10px' }}>
+                  📞 {r.phone}
+                </p>
+              )}
+
+              {/* Customer URL */}
+              <div style={{
+                background: 'rgba(255,107,53,0.06)',
+                border: '1px solid rgba(255,107,53,0.12)',
+                borderRadius: '10px', padding: '8px 12px',
+                marginBottom: '12px'
+              }}>
+                <p style={{ color: '#7a5f58', fontSize: '10px', margin: '0 0 2px' }}>Customer URL</p>
+                <p style={{ color: '#ff8c69', fontSize: '11px', margin: 0, wordBreak: 'break-all' }}>
+                  {appUrl}/r/{r.slug}/table/T1
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <a href={`/r/${r.slug}/table/T1`} target="_blank" style={{
+                  flex: 1, textAlign: 'center',
+                  background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)',
+                  color: '#ff8c69', padding: '8px',
+                  borderRadius: '10px', fontSize: '12px',
+                  fontWeight: 600, textDecoration: 'none'
+                }}>👁️ Preview</a>
+                <button onClick={() => {
+                  setEditItem(r)
+                  setForm({ name: r.name, slug: r.slug, address: r.address || '', phone: r.phone || '', logo: r.logo || '', active: r.active })
+                  setAddOpen(true)
+                }} style={{
+                  flex: 1, background: 'rgba(255,107,53,0.1)',
+                  border: '1px solid rgba(255,107,53,0.2)',
+                  color: '#ff8c69', padding: '8px',
+                  borderRadius: '10px', fontSize: '12px',
+                  fontWeight: 600, cursor: 'pointer'
+                }}>✏️ Edit</button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Add/Edit Modal */}
+      {addOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: '1px solid rgba(255,107,53,0.25)',
+            borderRadius: '20px', padding: '28px',
+            width: '100%', maxWidth: '420px',
+            maxHeight: '85vh', overflowY: 'auto'
+          }}>
+            <h3 style={{ color: '#fff5f0', fontSize: '20px', fontWeight: 700, marginBottom: '20px' }}>
+              {editItem ? '✏️ Edit Branch' : '🏪 Add New Branch'}
+            </h3>
+
+            <input placeholder="Restaurant name *" value={form.name}
+              onChange={e => {
+                const name = e.target.value
+                const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+                setForm(p => ({ ...p, name, slug: editItem ? p.slug : slug }))
+              }}
+              style={inputStyle} />
+
+            <input placeholder="URL slug (e.g. spice-garden-delhi) *" value={form.slug}
+              onChange={e => setForm(p => ({ ...p, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+              style={inputStyle} />
+
+            <input placeholder="Address" value={form.address}
+              onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
+              style={inputStyle} />
+
+            <input placeholder="Phone number" value={form.phone}
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+              style={inputStyle} />
+
+            <input placeholder="Logo URL" value={form.logo}
+              onChange={e => setForm(p => ({ ...p, logo: e.target.value }))}
+              style={inputStyle} />
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <p style={{ color: '#c8a49a', fontSize: '14px', fontWeight: 600, margin: 0 }}>Active</p>
+              <button onClick={() => setForm(p => ({ ...p, active: !p.active }))} style={{
+                width: '48px', height: '26px', borderRadius: '13px', border: 'none',
+                background: form.active ? 'linear-gradient(135deg, #ff6b35, #ff6b9d)' : '#2a2a2a',
+                cursor: 'pointer', position: 'relative'
+              }}>
+                <div style={{
+                  width: '20px', height: '20px', borderRadius: '50%', background: '#fff',
+                  position: 'absolute', top: '3px',
+                  left: form.active ? '25px' : '3px', transition: 'left 0.2s'
+                }} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={save} disabled={loading} style={{
+                flex: 1, background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+                border: 'none', color: '#fff', padding: '14px',
+                borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+                cursor: 'pointer', opacity: loading ? 0.6 : 1
+              }}>{loading ? 'Saving...' : editItem ? 'Update' : 'Create Branch'}</button>
+              <button onClick={() => { setAddOpen(false); setEditItem(null) }} style={{
+                flex: 1, background: 'transparent',
+                border: '1px solid rgba(255,107,53,0.2)',
+                color: '#7a5f58', padding: '14px',
+                borderRadius: '12px', fontSize: '14px', cursor: 'pointer'
+              }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

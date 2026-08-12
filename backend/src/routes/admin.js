@@ -6,6 +6,7 @@ import { upload, cloudinary } from '../lib/cloudinary.js'
 import { sendOrderReady } from '../lib/whatsapp.js'
 import { getInventory, setStock, getLowStockItems } from '../services/inventoryService.js'
 import { loginStaff, createStaff, getAllStaff, updateStaff, deleteStaff, PERMISSIONS } from '../services/staffService.js'
+import { createRestaurant, getAllRestaurants, getRestaurantBySlug, updateRestaurant, getRestaurantStats } from '../services/restaurantService.js'
 
 const router = Router();
 
@@ -497,6 +498,57 @@ router.post('/staff/seed-owner', async (req, res) => {
     })
     const { password, ...safe } = owner
     res.json(safe)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get all restaurants
+router.get('/restaurants', adminAuth, async (req, res) => {
+  try {
+    const restaurants = await getAllRestaurants()
+    res.json(restaurants)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Create restaurant
+router.post('/restaurants', adminAuth, async (req, res) => {
+  try {
+    const restaurant = await createRestaurant(req.body)
+    res.json(restaurant)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Update restaurant
+router.patch('/restaurants/:id', adminAuth, async (req, res) => {
+  try {
+    const restaurant = await updateRestaurant(req.params.id, req.body)
+    res.json(restaurant)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get restaurant stats
+router.get('/restaurants/:id/stats', adminAuth, async (req, res) => {
+  try {
+    const stats = await getRestaurantStats(req.params.id)
+    res.json(stats)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get restaurant by slug (public)
+router.get('/restaurant/:slug', async (req, res) => {
+  try {
+    const restaurant = await getRestaurantBySlug(req.params.slug)
+    if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' })
+    res.json(restaurant)
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
