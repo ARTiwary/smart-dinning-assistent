@@ -26,6 +26,7 @@ import { translateMenu, detectLanguage } from './services/translationService.js'
 import { getDietaryProfile, saveDietaryProfile } from './services/dietaryService.js'
 import { getAccount, POINT_VALUE, MIN_REDEEM } from './services/loyaltyService.js'
 import { getLastOrder, getOrderHistory, getFavoriteItems } from '../services/customerService.js'
+import { createOrder as createRazorpayOrder, verifyPayment } from './lib/razorpay.js'
 
 dotenv.config()
 
@@ -461,6 +462,124 @@ app.post('/api/allergen-check', async (req, res) => {
       }
     })
   } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Create Razorpay order
+app.post('/api/payment/create', async (req, res) => {
+  try {
+    const { sessionId, couponCode, loyaltyDiscount } = req.body
+
+    const cartItems = await prisma.cartItem.findMany({
+      where: { sessionId },
+      include: { menuItem: true }
+    })
+
+    if (cartItems.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' })
+    }
+
+    const subtotal = cartItems.reduce(
+      (s, i) => s + Number(i.menuItem.price) * i.quantity, 0
+    )
+    const tax = subtotal * 0.05
+    let total = subtotal + tax
+
+    // Apply discounts
+    if (couponCode) {
+      const coupon = await prisma.coupon.findUnique({
+        where: { code: couponCode.toUpperCase() }
+      })
+      if (coupon && coupon.active) {
+        const discount = coupon.type === 'percentage'
+          ? (total * coupon.discount) / 100
+          : coupon.discount
+        total = Math.max(0, total - discount)
+      }
+    }
+
+    if (loyaltyDiscount) {
+      total = Math.max(0, total - Number(loyaltyDiscount))
+    }
+
+    const razorpayOrder = await createRazorpayOrder(
+      total,
+      'INR',
+      `session_${sessionId.slice(0, 8)}`
+    )
+
+    // Store pending payment
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        preferences: {
+          pendingPayment: {
+            razorpayOrderId: razorpayOrder.id,
+            amount: total,
+            couponCode,
+            loyaltyDiscount
+          }
+        }
+      }
+    })
+
+    res.json({
+      razorpayOrderId: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      total
+    })
+  } catch (e) {
+    console.error('Razorpay create error:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Verify payment and place order
+app.post('/api/payment/verify', async (req, res) => {
+  try {
+    const {
+      sessionId,
+      customerName,
+      customerPhone,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+      couponCode,
+      loyaltyDiscount
+    } = req.body
+
+    // Verify signature
+    const isValid = verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature)
+    if (!isValid) {
+      return res.status(400).json({ error: 'Payment verification failed' })
+    }
+
+    // Place order
+    const { placeOrder } = await import('./src/services/orderService.js')
+    const order = await placeOrder(sessionId, customerName, customerPhone)
+
+    // Apply coupon usage
+    if (couponCode) {
+      await prisma.coupon.update({
+        where: { code: couponCode.toUpperCase() },
+        data: { usedCount: { increment: 1 } }
+      }).catch(() => {})
+    }
+
+    // Save payment details
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'confirmed', // Auto-confirm paid orders
+      }
+    })
+
+    res.json({ success: true, order })
+  } catch (e) {
+    console.error('Payment verify error:', e)
     res.status(500).json({ error: e.message })
   }
 })

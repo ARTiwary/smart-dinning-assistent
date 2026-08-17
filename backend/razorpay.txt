@@ -1,0 +1,4 @@
+Step 1 — Sign up Razorpay
+Go to https://razorpay.com → Sign up free
+Go to Settings → API Keys → Generate test keys
+Copy Key ID and Key Secret

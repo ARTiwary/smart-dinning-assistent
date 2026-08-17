@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '@/lib/store'
 import axios from 'axios'
+import PaymentModal from '@/components/PaymentModal'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -20,6 +21,8 @@ export default function CartDrawer() {
   } = useStore()
 
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [paymentTotal, setPaymentTotal] = useState(0)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState('')
@@ -113,54 +116,35 @@ export default function CartDrawer() {
     setCouponLoading(false)
   }
 
-  async function placeOrder() {
-    if (otp.length !== 6) { 
-      setErrors({ otp: 'OTP must be 6 digits' })
-      return 
+  function validateOtp() {
+    if (!/^\d{6}$/.test(otp)) {
+      setErrors(p => ({ ...p, otp: 'Enter a valid 6-digit OTP' }))
+      return false
     }
+    return true
+  }
+
+  async function placeOrder() {
+    if (!validateOtp()) return
     setLoading(true)
     try {
       const { data: v } = await axios.post(`${API}/api/otp/verify`, { phone, otp })
-      if (!v.valid) { 
+      if (!v.valid) {
         setErrors({ otp: 'Invalid OTP. Try again.' })
         setLoading(false)
-        return 
+        return
       }
-
+      // Place order directly here — no second verify
       const { data: order } = await axios.post(`${API}/api/session/${session.id}/order`, {
-        customerName: name, 
-        customerPhone: phone,
-        couponCode: coupon?.code,
-        discountAmount: (coupon?.discount || 0) + loyaltyDiscount
+        customerName: name, customerPhone: phone
       })
-
-      // Redeem loyalty points
-      if (redeemPoints > 0) {
-        await axios.post(`${API}/api/loyalty/redeem/verify`, {
-          phone, points: redeemPoints
-        })
-      }
-
-      // Apply coupon usage
-      if (coupon) {
-        await axios.post(`${API}/api/coupon/apply`, { code: coupon.code })
-      }
-
-      // Save phone and name for cross-session memory
-      localStorage.setItem('customerPhone', phone)
-      localStorage.setItem('customerName', name)
-
-      setOrderPlaced({ ...order, discountAmount: (coupon?.discount || 0) + loyaltyDiscount })
+      setOrderPlaced(order)
       setCheckoutOpen(false)
       setCartOpen(false)
-      setOtp('')
-      setOtpSent(false)
-      setErrors({})
-      setCoupon(null)
-      setCouponCode('')
-      setRedeemPoints(0)
-      setLoyaltyDiscount(0)
       setCart([])
+      setName(''); setPhone(''); setOtp('')
+      setOtpSent(false); setErrors({})
+      setCoupon && setCoupon(null)
     } catch (e) {
       setErrors({ general: e.response?.data?.error || 'Something went wrong.' })
     }
@@ -1078,6 +1062,29 @@ export default function CartDrawer() {
             </button>
           </div>
         </div>
+      )}
+
+      {paymentOpen && (
+        <PaymentModal
+          sessionId={session?.id}
+          customerName={name}
+          customerPhone={phone}
+          total={paymentTotal}
+          couponCode={coupon?.code}
+          loyaltyDiscount={loyaltyDiscount}
+          onSuccess={(order) => {
+            setPaymentOpen(false)
+            setCart([])
+            setOrderPlaced(order)
+            setName(''); setPhone(''); setOtp('')
+            setOtpSent(false); setCoupon(null)
+            setLoyaltyDiscount(0); setRedeemPoints(0)
+          }}
+          onCancel={() => {
+            setPaymentOpen(false)
+            setCheckoutOpen(true)
+          }}
+        />
       )}
 
       {orderPlaced && (
