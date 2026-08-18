@@ -1088,110 +1088,227 @@ export default function CartDrawer() {
       )}
 
       {orderPlaced && (
-        <div
+  <div
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      zIndex: 99999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(0,0,0,0.92)',
+      backdropFilter: 'blur(16px)',
+      padding: '16px',
+      boxSizing: 'border-box',
+    }}
+  >
+    <div
+      style={{
+        background: 'linear-gradient(145deg, #1a1220, #201628)',
+        border: '1px solid rgba(74,222,128,0.2)',
+        borderRadius: '28px',
+        width: '100%',
+        maxWidth: '360px',
+        padding: '36px 28px',
+        textAlign: 'center',
+        boxShadow: '0 20px 80px rgba(0,0,0,0.55)',
+        transform: 'translateY(0)',
+      }}
+    >
+      <div style={{ fontSize: '64px', marginBottom: '12px' }}>
+        🎉
+      </div>
+
+      <h3
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '26px',
+          fontWeight: 700,
+          color: '#fff5f0',
+          marginBottom: '6px'
+        }}
+      >
+        Order Placed!
+      </h3>
+
+      <p
+        style={{
+          color: '#7a5f58',
+          fontSize: '12px',
+          marginBottom: '6px'
+        }}
+      >
+        #{orderPlaced.id?.slice(0, 8).toUpperCase()}
+      </p>
+
+      <p
+        style={{
+          background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          fontSize: '30px',
+          fontWeight: 800,
+          marginBottom: '16px'
+        }}
+      >
+        ₹{Number(
+          orderPlaced.totalAmount -
+          (orderPlaced.discountAmount || 0)
+        ).toFixed(0)}
+      </p>
+
+      <p
+        style={{
+          color: '#7a5f58',
+          fontSize: '13px',
+          marginBottom: '14px'
+        }}
+      >
+        ⏱️ Estimated wait:{' '}
+        <span style={{
+          color: '#ffd166',
+          fontWeight: 600
+        }}>
+          15–20 mins
+        </span>
+      </p>
+
+      <div
+        style={{
+          background:
+            'linear-gradient(135deg, rgba(255,107,53,0.1), rgba(255,107,157,0.08))',
+          border: '1px solid rgba(255,107,157,0.2)',
+          borderRadius: '14px',
+          padding: '14px',
+          marginBottom: '20px'
+        }}
+      >
+        <p
           style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0,0,0,0.92)',
-            backdropFilter: 'blur(16px)',
-            padding: '16px',
-            boxSizing: 'border-box',
+            color: '#ffb3c6',
+            fontSize: '14px',
+            fontWeight: 600,
+            marginBottom: '6px'
           }}
         >
-          <div
-            style={{
-              background: 'linear-gradient(145deg, #1a1220, #201628)',
-              border: '1px solid rgba(74,222,128,0.2)',
-              borderRadius: '28px',
-              width: '100%',
-              maxWidth: '360px',
-              padding: '36px 28px',
-              textAlign: 'center',
-              boxShadow: '0 20px 80px rgba(0,0,0,0.55)',
-              transform: 'translateY(0)',
-            }}
-          >
-            <div style={{ fontSize: '64px', marginBottom: '12px' }}>🎉</div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 700, color: '#fff5f0', marginBottom: '6px' }}>Order Placed!</h3>
-            <p style={{ color: '#7a5f58', fontSize: '12px', marginBottom: '6px' }}>#{orderPlaced.id?.slice(0, 8).toUpperCase()}</p>
-            <p style={{ background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '30px', fontWeight: 800, marginBottom: '16px' }}>
-              ₹{Number(orderPlaced.totalAmount - (orderPlaced.discountAmount || 0)).toFixed(0)}
-            </p>
-            <p style={{ color: '#7a5f58', fontSize: '13px', marginBottom: '14px' }}>
-              ⏱️ Estimated wait: <span style={{ color: '#ffd166', fontWeight: 600 }}>15–20 mins</span>
-            </p>
-            <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.1), rgba(255,107,157,0.08))', border: '1px solid rgba(255,107,157,0.2)', borderRadius: '14px', padding: '14px', marginBottom: '20px' }}>
-              <p style={{ color: '#ffb3c6', fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>
-                🙏 Thank you, {orderPlaced.customerName?.split(' ')[0]}!
-              </p>
-              <p style={{ color: '#7a5f58', fontSize: '12px', lineHeight: 1.6 }}>
-                Your food is being prepared with love. Want to explore more while you wait?
-              </p>
-            </div>
-            <button 
-              onClick={() => { window.open(`/track/${orderPlaced.id}`, '_blank') }}
-              style={{
-                width: '100%', marginBottom: '10px',
-                background: 'rgba(255,107,53,0.1)', 
-                border: '1px solid rgba(255,107,53,0.3)',
-                color: '#ff8c69', padding: '12px', borderRadius: '14px',
-                fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-              }}
-            >📍 Track My Order</button>
+          🙏 Thank you, {orderPlaced.customerName?.split(' ')[0]}!
+        </p>
 
-            {/* Download Bill button */}
-            <button
-              onClick={() => downloadBill(orderPlaced)}
-              style={{
-                width: '100%', marginBottom: '10px',
-                background: 'rgba(74,222,128,0.1)',
-                border: '1px solid rgba(74,222,128,0.25)',
-                color: '#4ade80', padding: '13px', borderRadius: '14px',
-                fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-              }}
-            >📄 Download Bill (PDF)</button>
+        <p
+          style={{
+            color: '#7a5f58',
+            fontSize: '12px',
+            lineHeight: 1.6
+          }}
+        >
+          Your food is being prepared with love. Want to explore more while you wait?
+        </p>
+      </div>
 
-            <button 
-              onClick={() => setOrderPlaced(null)} 
-              style={{
-                width: '100%', marginBottom: '10px',
-                background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
-                border: 'none', color: '#fff', padding: '15px', borderRadius: '14px',
-                fontSize: '15px', fontWeight: 700, cursor: 'pointer',
-              }}
-            >🍽️ Explore More Menu</button>
-            {orderPlaced.status === 'pending' && (
-              <button
-                onClick={() => cancelOrder(orderPlaced.id)}
-                disabled={cancelling}
-                style={{
-                  width: '100%', marginBottom: '10px',
-                  background: 'transparent',
-                  border: '1px solid rgba(255,100,100,0.3)',
-                  color: '#ff6b6b', padding: '12px', borderRadius: '14px',
-                  fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-                }}
-              >{cancelling ? 'Cancelling...' : '✕ Cancel Order'}</button>
-            )}
-            <button 
-              onClick={() => setOrderPlaced(null)} 
-              style={{
-                width: '100%', background: 'transparent', border: 'none',
-                color: '#7a5f58', padding: '8px', cursor: 'pointer', fontSize: '13px',
-              }}
-            >Close</button>
+      {/* Track Delivery */}
+      <a
+        href={`/delivery/${orderPlaced.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'block',
+          width: '100%',
+          marginBottom: '10px',
+          background: 'rgba(96,165,250,0.1)',
+          border: '1px solid rgba(96,165,250,0.2)',
+          color: '#60a5fa',
+          padding: '12px',
+          borderRadius: '14px',
+          fontSize: '14px',
+          fontWeight: 600,
+          textDecoration: 'none',
+          textAlign: 'center',
+          boxSizing: 'border-box'
+        }}
+      >
+        🛵 Track Delivery
+      </a>
 
-          </div>
-        </div>
+      {/* Download Bill button */}
+      <button
+        onClick={() => downloadBill(orderPlaced)}
+        style={{
+          width: '100%',
+          marginBottom: '10px',
+          background: 'rgba(74,222,128,0.1)',
+          border: '1px solid rgba(74,222,128,0.25)',
+          color: '#4ade80',
+          padding: '13px',
+          borderRadius: '14px',
+          fontSize: '14px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
+        }}
+      >
+        📄 Download Bill (PDF)
+      </button>
+
+      <button
+        onClick={() => setOrderPlaced(null)}
+        style={{
+          width: '100%',
+          marginBottom: '10px',
+          background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+          border: 'none',
+          color: '#fff',
+          padding: '15px',
+          borderRadius: '14px',
+          fontSize: '15px',
+          fontWeight: 700,
+          cursor: 'pointer',
+        }}
+      >
+        🍽️ Explore More Menu
+      </button>
+
+      {orderPlaced.status === 'pending' && (
+        <button
+          onClick={() => cancelOrder(orderPlaced.id)}
+          disabled={cancelling}
+          style={{
+            width: '100%',
+            marginBottom: '10px',
+            background: 'transparent',
+            border: '1px solid rgba(255,100,100,0.3)',
+            color: '#ff6b6b',
+            padding: '12px',
+            borderRadius: '14px',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          {cancelling ? 'Cancelling...' : '✕ Cancel Order'}
+        </button>
       )}
-    </>
-  )
-}
+
+      <button
+        onClick={() => setOrderPlaced(null)}
+        style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          color: '#7a5f58',
+          padding: '8px',
+          cursor: 'pointer',
+          fontSize: '13px',
+        }}
+      >
+        Close
+      </button>
+
+    </div>
+  </div>
+)}

@@ -69,6 +69,8 @@ model Order {
   session        Session     @relation(fields: [sessionId], references: [id])
   orderItems     OrderItem[]
   createdAt      DateTime    @default(now())
+  delivery    Delivery?
+  paymentMethod String? @default("cash")
 }
 
 model OrderItem {
@@ -197,4 +199,18 @@ model Restaurant {
   createdAt   DateTime  @default(now())
   sessions    Session[]
   menuItems   MenuItem[]
+}
+
+model Delivery {
+  id           String   @id @default(uuid())
+  orderId      String   @unique
+  driverName   String
+  driverPhone  String
+  status       String   @default("assigned") // assigned | picked_up | on_way | delivered
+  lat          Float?
+  lng          Float?
+  estimatedMin Int      @default(30)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  order        Order    @relation(fields: [orderId], references: [id])
 }

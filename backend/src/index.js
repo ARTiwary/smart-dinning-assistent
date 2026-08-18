@@ -584,6 +584,63 @@ app.post('/api/payment/verify', async (req, res) => {
   }
 })
 
+// Assign delivery driver
+app.post('/api/admin/delivery/assign', async (req, res) => {
+  const key = req.headers['x-admin-key']
+  if (key !== (process.env.ADMIN_KEY || 'admin123')) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  try {
+    const { orderId, driverName, driverPhone, estimatedMin } = req.body
+    const delivery = await prisma.delivery.create({
+      data: { orderId, driverName, driverPhone, estimatedMin: Number(estimatedMin) }
+    })
+    const order = await prisma.order.findUnique({
+      where: { id: orderId }, include: { session: true }
+    })
+    // Notify customer
+    io.to(`table:${order.session?.tableId}`).emit('delivery:assigned', {
+      orderId, driverName, estimatedMin
+    })
+    res.json(delivery)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Update driver location (called by driver app/admin)
+app.patch('/api/delivery/:orderId/location', async (req, res) => {
+  try {
+    const { lat, lng, status } = req.body
+    const delivery = await prisma.delivery.update({
+      where: { orderId: req.params.orderId },
+      data: { lat, lng, ...(status && { status }) }
+    })
+    const order = await prisma.order.findUnique({
+      where: { id: req.params.orderId }, include: { session: true }
+    })
+    // Broadcast location to customer
+    io.to(`table:${order.session?.tableId}`).emit('delivery:location', {
+      orderId: req.params.orderId, lat, lng, status
+    })
+    res.json(delivery)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Get delivery status
+app.get('/api/delivery/:orderId', async (req, res) => {
+  try {
+    const delivery = await prisma.delivery.findUnique({
+      where: { orderId: req.params.orderId }
+    })
+    res.json(delivery || null)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // Initialize WebSockets & Server
 setupSocketHandlers(io)
 

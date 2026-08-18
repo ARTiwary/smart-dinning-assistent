@@ -1754,79 +1754,238 @@ function Tables({ tables, tableCount, setTableCount, qrMap, onGenerateQR, onClos
 }
 
 function OrderModal({ order, onClose, onStatusChange }) {
-  const sc = STATUS_COLORS[order.status] || STATUS_COLORS.pending
-  const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1]
+  const [deliveryOpen, setDeliveryOpen] = useState(false)
+  const [driverForm, setDriverForm] = useState({ driverName: '', driverPhone: '', estimatedMin: 30 })
+  const [assigning, setAssigning] = useState(false)
 
-  return (
+  async function assignDriver() {
+    setAssigning(true)
+    try {
+      await axios.post(`${API}/api/admin/delivery/assign`, {
+        orderId: order.id,
+        ...driverForm
+      }, { headers })
+      setDeliveryOpen(false)
+      alert('Driver assigned! Customer will be notified.')
+    } catch (e) {
+      alert(e.response?.data?.error || 'Error assigning driver')
+    }
+    setAssigning(false)
+  }
+return (
+  <div style={{
+    position: 'fixed', inset: 0, zIndex: 100,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: '24px', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+  }}>
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 100,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+      background: 'linear-gradient(145deg, #1a1220, #201628)',
+      border: '1px solid rgba(255,107,53,0.2)',
+      borderRadius: '24px', padding: '28px',
+      width: '100%', maxWidth: '440px',
+      maxHeight: '85vh', overflowY: 'auto',
     }}>
       <div style={{
-        background: 'linear-gradient(145deg, #1a1220, #201628)',
-        border: '1px solid rgba(255,107,53,0.2)',
-        borderRadius: '24px', padding: '28px',
-        width: '100%', maxWidth: '440px',
-        maxHeight: '85vh', overflowY: 'auto',
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: '20px'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: 700, color: '#fff5f0' }}>
-            Order Details
-          </h3>
-          <button onClick={onClose} style={{
-            width: '34px', height: '34px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,107,53,0.15)',
-            color: '#c8a49a', fontSize: '16px', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>✕</button>
-        </div>
+        <h3 style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '22px', fontWeight: 700, color: '#fff5f0'
+        }}>
+          Order Details
+        </h3>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <div>
-            <p style={{ color: '#fff5f0', fontWeight: 700, fontSize: '18px' }}>Table {order.session?.tableId}</p>
-            <p style={{ color: '#7a5f58', fontSize: '13px' }}>{order.customerName} • {order.customerPhone}</p>
-            <p style={{ color: '#7a5f58', fontSize: '11px', marginTop: '4px' }}>
-              {new Date(order.createdAt).toLocaleString('en-IN')}
-            </p>
-          </div>
-          <span style={{
-            background: sc.bg, border: `1px solid ${sc.border}`,
-            color: sc.text, fontSize: '11px', fontWeight: 700,
-            padding: '4px 10px', borderRadius: '10px', height: 'fit-content'
-          }}>{order.status.toUpperCase()}</span>
-        </div>
-
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '16px 0', marginBottom: '20px' }}>
-          {order.orderItems?.map((oi, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#c8a49a', fontSize: '14px' }}>
-              <span>{oi.menuItem?.name} × {oi.quantity}</span>
-              <span>₹{(Number(oi.price) * oi.quantity).toFixed(0)}</span>
-            </div>
-          ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', color: '#fff5f0', fontWeight: 800, fontSize: '16px' }}>
-            <span>Total</span>
-            <span>₹{Number(order.totalAmount).toFixed(0)}</span>
-          </div>
-        </div>
-
-        {onStatusChange && nextStatus && (
-          <button
-            onClick={() => onStatusChange(order.id, nextStatus)}
-            style={{
-              width: '100%',
-              background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
-              border: 'none', color: '#fff', padding: '12px',
-              borderRadius: '12px', fontSize: '14px', fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'sans-serif',
-            }}
-          >
-            Mark {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)} →
-          </button>
-        )}
+        <button onClick={onClose} style={{
+          width: '34px', height: '34px', borderRadius: '50%',
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,107,53,0.15)',
+          color: '#c8a49a', fontSize: '16px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>✕</button>
       </div>
+
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', marginBottom: '16px'
+      }}>
+        <div>
+          <p style={{
+            color: '#fff5f0', fontWeight: 700, fontSize: '18px'
+          }}>
+            Table {order.session?.tableId}
+          </p>
+
+          <p style={{ color: '#7a5f58', fontSize: '13px' }}>
+            {order.customerName} • {order.customerPhone}
+          </p>
+
+          <p style={{
+            color: '#7a5f58', fontSize: '11px', marginTop: '4px'
+          }}>
+            {new Date(order.createdAt).toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <span style={{
+          background: sc.bg, border: `1px solid ${sc.border}`,
+          color: sc.text, fontSize: '11px', fontWeight: 700,
+          padding: '4px 10px', borderRadius: '10px', height: 'fit-content'
+        }}>
+          {order.status.toUpperCase()}
+        </span>
+      </div>
+
+      <div style={{
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        padding: '16px 0', marginBottom: '20px'
+      }}>
+        {order.orderItems?.map((oi, i) => (
+          <div key={i} style={{
+            display: 'flex', justifyContent: 'space-between',
+            marginBottom: '8px', color: '#c8a49a', fontSize: '14px'
+          }}>
+            <span>{oi.menuItem?.name} × {oi.quantity}</span>
+            <span>₹{(Number(oi.price) * oi.quantity).toFixed(0)}</span>
+          </div>
+        ))}
+
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          marginTop: '16px', color: '#fff5f0',
+          fontWeight: 800, fontSize: '16px'
+        }}>
+          <span>Total</span>
+          <span>₹{Number(order.totalAmount).toFixed(0)}</span>
+        </div>
+      </div>
+
+      {onStatusChange && nextStatus && (
+        <button
+          onClick={() => onStatusChange(order.id, nextStatus)}
+          style={{
+            width: '100%',
+            background: 'linear-gradient(135deg, #ff6b35, #ff6b9d)',
+            border: 'none', color: '#fff', padding: '12px',
+            borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'sans-serif',
+          }}
+        >
+          Mark {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)} →
+        </button>
+      )}
+
+      {['confirmed', 'preparing', 'ready'].includes(order.status) && (
+        <button
+          onClick={() => setDeliveryOpen(true)}
+          style={{
+            width: '100%', marginTop: '10px',
+            background: 'rgba(96,165,250,0.1)',
+            border: '1px solid rgba(96,165,250,0.3)',
+            color: '#60a5fa', padding: '12px', borderRadius: '14px',
+            fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+          }}
+        >
+          🛵 Assign Delivery Driver
+        </button>
+      )}
+
+      <a
+        href={`/delivery/${order.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'block', width: '100%', marginTop: '8px',
+          background: 'transparent',
+          border: '1px solid rgba(255,107,53,0.2)',
+          color: '#7a5f58', padding: '10px', borderRadius: '14px',
+          fontSize: '13px', textAlign: 'center',
+          textDecoration: 'none', boxSizing: 'border-box'
+        }}
+      >
+        📍 View Tracking Page
+      </a>
+
+      {deliveryOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 300,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'center', padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, #1a1220, #201628)',
+            border: '1px solid rgba(96,165,250,0.25)',
+            borderRadius: '20px', padding: '28px',
+            width: '100%', maxWidth: '360px'
+          }}>
+            <h3 style={{
+              color: '#fff5f0', fontSize: '20px',
+              fontWeight: 700, marginBottom: '20px'
+            }}>
+              🛵 Assign Driver
+            </h3>
+
+            {[
+              { placeholder: 'Driver name', field: 'driverName', type: 'text' },
+              { placeholder: 'Driver phone', field: 'driverPhone', type: 'tel' },
+              { placeholder: 'Estimated minutes', field: 'estimatedMin', type: 'number' },
+            ].map(({ placeholder, field, type }) => (
+              <input
+                key={field}
+                type={type}
+                placeholder={placeholder}
+                value={driverForm[field]}
+                onChange={e => setDriverForm(p => ({
+                  ...p, [field]: e.target.value
+                }))}
+                style={{
+                  width: '100%',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(96,165,250,0.2)',
+                  borderRadius: '12px', padding: '13px 16px',
+                  color: '#fff5f0', fontSize: '14px', outline: 'none',
+                  marginBottom: '12px', boxSizing: 'border-box',
+                  fontFamily: 'sans-serif'
+                }}
+              />
+            ))}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={assignDriver}
+                disabled={assigning}
+                style={{
+                  flex: 1,
+                  background: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
+                  border: 'none', color: '#fff', padding: '14px',
+                  borderRadius: '12px', fontSize: '14px',
+                  fontWeight: 700, cursor: 'pointer',
+                  opacity: assigning ? 0.6 : 1
+                }}
+              >
+                {assigning ? 'Assigning...' : 'Assign Driver'}
+              </button>
+
+              <button
+                onClick={() => setDeliveryOpen(false)}
+                style={{
+                  flex: 1, background: 'transparent',
+                  border: '1px solid rgba(255,107,53,0.2)',
+                  color: '#7a5f58', padding: '14px',
+                  borderRadius: '12px', fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  </div>
+)
 }
 
 function MenuManagement({ menuItems, onRefresh, headers }) {
